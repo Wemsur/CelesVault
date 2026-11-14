@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-pub const DEFAULT_EXTENSIONS: &str = "doc,docx,docm,dot,dotx,dotm,wps,wpt,ppt,pptx,pptm,pps,ppsx,ppsm,pot,potx,potm,dps,dpt,xls,xlsx,xlsm,xlsb,xlt,xltx,xltm,et,ett,jpg,jpeg,png,bmp,gif,tif,tiff,webp,ico,heic,heif";
+pub const DEFAULT_EXTENSIONS: &str = "doc,docx,docm,dot,dotx,dotm,wps,wpt,pdf,ppt,pptx,pptm,pps,ppsx,ppsm,pot,potx,potm,dps,dpt,xls,xlsx,xlsm,xlsb,xlt,xltx,xltm,et,ett,jpg,jpeg,png,bmp,gif,tif,tiff,webp,ico,heic,heif";
 
 /// Lexical normalization only: never opens a document or follows a reparse point.
 pub fn normalize(path: &str) -> String {
@@ -167,10 +167,20 @@ mod tests {
     }
     #[test]
     fn families_only() {
-        assert!(!scope().matches("D:\\a.pdf"));
+        assert!(!scope().matches("D:\\a.zip"));
         assert!(!scope().matches("D:\\a.mp4"));
         assert!(scope().matches("D:\\a.dps"));
         assert!(scope().matches("D:\\a.JPEG"));
+    }
+    #[test]
+    fn pdf_is_enabled_by_default() {
+        assert!(scope().matches("D:\\a.PDF"));
+    }
+    #[test]
+    fn explicit_extension_override_can_still_exclude_pdf() {
+        let selected = Scope::new(vec!["D:/".into()], vec![], "docx,jpg");
+        assert!(!selected.matches("D:/a.pdf"));
+        assert!(selected.matches("D:/a.docx"));
     }
     #[test]
     fn unicode_and_extended_paths() {

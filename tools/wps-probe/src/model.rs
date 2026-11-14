@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+pub const SMOKE_EXTENSIONS: &[&str] = &["docx", "pdf", "jpg"];
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ProcessInfo {
     pub pid: u32,

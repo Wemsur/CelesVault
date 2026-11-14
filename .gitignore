@@ -2,3 +2,12 @@
 /tools/wps-probe/target/
 /tools/wps-probe/logs/
 /dist/
+/web-dist/
+/node_modules/
+/target/
+/src-tauri/target/
+/src-tauri/gen/
+/data/
+/.claude/
+/.tmp-verify/
+*.local

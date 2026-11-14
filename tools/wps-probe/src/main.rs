@@ -1,4 +1,5 @@
 #![cfg(windows)]
+mod console;
 mod etw;
 mod filter;
 mod model;
@@ -6,11 +7,10 @@ mod report;
 mod windows;
 
 use filter::{DEFAULT_EXTENSIONS, Scope};
-use model::{LogRow, Marker};
+use model::{LogRow, Marker, SMOKE_EXTENSIONS};
 use serde::Deserialize;
 use serde_json::json;
 use std::{
-    collections::HashSet,
     fs,
     io::{self, BufRead},
     path::PathBuf,
@@ -34,11 +34,12 @@ struct Options {
     extensions: String,
     output: PathBuf,
     smoke: bool,
+    configuration_path: Option<PathBuf>,
 }
 
 fn help() {
     println!(
-        "CelesVault WPS 文件访问诊断工具 {}\n\n只记录本地元数据，不复制资料、不上传、不安装驱动。\n学校：双击 Start-Probe.cmd，通过 UAC，按数字 + Enter 标记，再去操作样本。\n\n参数：\n  --duration-seconds 600     自动停止时限（1–3600 秒）\n  --root <绝对目录>           增加监听目录，可重复\n  --only-roots              仅监听 --root 或配置中指定的目录\n  --extensions doc,docx,png  覆盖扩展名列表\n  --output <目录>            输出父目录（每次新建子目录）\n  --smoke-test               8 秒本机 ETW 检查，只创建/读取自己的临时样本\n  --stop-session <完整会话名> 仅清理日志中指定的本工具遗留会话\n  --help                    不需要管理员权限\n\n默认读取 EXE 旁的 probe-config.json（存在时）。\n日志含文件名、路径和程序路径，请使用非敏感样本并检查后再分享。",
+        "CelesVault WPS 文件访问诊断工具 {}\n\n只记录本地元数据，不复制资料、不上传、不安装驱动。\n本地测试：双击 Start-Probe.cmd，通过 UAC，按数字 + Enter 标记，再去操作样本。\n\n参数：\n  --duration-seconds 600     自动停止时限（1–3600 秒）\n  --root <绝对目录>           增加监听目录，可重复\n  --only-roots              仅监听 --root 或配置中指定的目录\n  --extensions docx,pdf,jpg  覆盖扩展名列表\n  --output <目录>            输出父目录（每次新建子目录）\n  --smoke-test               8 秒本机 ETW 检查，验证自建 DOCX/PDF/JPG 样本\n  --stop-session <完整会话名> 仅清理日志中指定的本工具遗留会话\n  --help                    不需要管理员权限\n\n默认读取 EXE 旁的 probe-config.json（存在时）。\n日志含文件名、路径和程序路径，请使用非敏感样本并检查后再分享。",
         env!("CARGO_PKG_VERSION")
     );
 }
@@ -92,8 +93,9 @@ fn options() -> Result<Option<Options>, String> {
         .ok_or("无法获取程序目录")?
         .to_owned();
     let config = exe_dir.join("probe-config.json");
-    let settings: Settings = if config.exists() {
-        serde_json::from_slice(&fs::read(&config).map_err(|e| e.to_string())?)
+    let configuration_path = config.exists().then_some(config);
+    let settings: Settings = if let Some(path) = &configuration_path {
+        serde_json::from_slice(&fs::read(path).map_err(|e| e.to_string())?)
             .map_err(|e| format!("配置文件错误：{e}"))?
     } else {
         Settings::default()
@@ -107,6 +109,7 @@ fn options() -> Result<Option<Options>, String> {
             .unwrap_or_else(|| DEFAULT_EXTENSIONS.into()),
         output: exe_dir.join("logs"),
         smoke: false,
+        configuration_path,
     };
     let mut i = 0;
     while i < args.len() {
@@ -152,6 +155,7 @@ fn options() -> Result<Option<Options>, String> {
     Ok(Some(result))
 }
 fn display_scope(scope: &Scope, drives: &[model::DriveInfo]) {
+    println!("实际有效扩展名：{}", scope.extension_list().join(","));
     println!("有效根目录：");
     for root in &scope.roots {
         println!("  {root}\\");
@@ -178,6 +182,7 @@ fn capture(mut opts: Options) -> Result<bool, String> {
     }
     let mut smoke_base = None;
     if opts.smoke {
+        opts.extensions = DEFAULT_EXTENSIONS.to_owned();
         let base = std::env::temp_dir().join(format!(
             "CelesVault-Probe-Smoke-{}-{}",
             std::process::id(),
@@ -212,7 +217,7 @@ fn capture(mut opts: Options) -> Result<bool, String> {
     if scope.extensions.is_empty() {
         return Err("扩展名列表为空".into());
     }
-    let session = json!({"tool":"CelesVault WPS Probe","tool_version":env!("CARGO_PKG_VERSION"),"os":windows::os_version(),"started_unix_ms":windows::unix_ms(),"capture_started":false,"duration_seconds":opts.duration,"initial_roots":scope.roots,"excluded":scope.excluded,"extensions":scope.extension_list(),"initial_drives":drive_info,"scope_policy":"all_processes_but_only_selected_paths_and_extensions","content_collected":false,"network_used":false,"raw_etl_saved":false,"smoke_test":opts.smoke,"notes":["file I/O is not proof of a user opening a document","metadata name events are not opening evidence","unknown path statistics include out-of-scope system events","historical device mappings are retained during this short recording","process command lines and window titles are not collected"]});
+    let session = json!({"tool":"CelesVault WPS Probe","tool_version":env!("CARGO_PKG_VERSION"),"os":windows::os_version(),"configuration_path":opts.configuration_path,"started_unix_ms":windows::unix_ms(),"capture_started":false,"duration_seconds":opts.duration,"initial_roots":scope.roots,"excluded":scope.excluded,"extensions":scope.extension_list(),"initial_drives":drive_info,"scope_policy":"all_processes_but_only_selected_paths_and_extensions","content_collected":false,"network_used":false,"raw_etl_saved":false,"smoke_test":opts.smoke,"notes":["file I/O is not proof of a user opening a document","metadata name events are not opening evidence","unknown path statistics include out-of-scope system events","historical device mappings are retained during this short recording","process command lines and window titles are not collected"]});
     let mut report = report::Report::new(run_dir.clone(), session)
         .map_err(|e| format!("无法创建独立日志目录：{e}"))?;
     println!(
@@ -222,6 +227,10 @@ fn capture(mut opts: Options) -> Result<bool, String> {
         run_dir.display(),
         opts.duration
     );
+    match &opts.configuration_path {
+        Some(path) => println!("已加载配置：{}", path.display()),
+        None => println!("使用内置默认配置（EXE 旁未找到 probe-config.json）"),
+    }
     display_scope(&scope, &drive_info);
     let scope = Arc::new(RwLock::new(scope));
     let (tx, rx) = mpsc::sync_channel(8192);
@@ -263,7 +272,7 @@ fn capture(mut opts: Options) -> Result<bool, String> {
     let mut last_drive = Instant::now();
     let mut last_progress = Instant::now();
     let mut previous_foreground = 0;
-    let mut displayed = HashSet::new();
+    let mut preview = console::ConsolePreview::new(100, Instant::now());
     let mut reason = "自动时限到达".to_owned();
     let mut io_failed = false;
     if let Some(base) = &smoke_base {
@@ -274,11 +283,13 @@ fn capture(mut opts: Options) -> Result<bool, String> {
                 label: "冒烟_本工具创建并读取临时样本".into(),
             })
             .map_err(|e| e.to_string())?;
-        let file = base.join("source/probe-smoke.docx");
-        // Synthetic bytes for OS I/O only; this is intentionally not a valid Word document.
-        fs::write(&file, vec![0u8; 1024 * 1024]).map_err(|e| e.to_string())?;
-        let bytes = fs::read(&file).map_err(|e| e.to_string())?;
-        std::hint::black_box(bytes);
+        // Synthetic bytes for OS I/O only; these are not valid Office/image documents.
+        for ext in SMOKE_EXTENSIONS {
+            let file = base.join(format!("source/probe-smoke.{ext}"));
+            fs::write(&file, vec![0u8; 1024 * 1024]).map_err(|e| e.to_string())?;
+            let bytes = fs::read(&file).map_err(|e| e.to_string())?;
+            std::hint::black_box(bytes);
+        }
     }
     while start.elapsed() < Duration::from_secs(opts.duration)
         && !windows::STOP_REQUESTED.load(Ordering::Relaxed)
@@ -286,11 +297,13 @@ fn capture(mut opts: Options) -> Result<bool, String> {
         for _ in 0..2048 {
             match rx.try_recv() {
                 Ok(event) => {
-                    if displayed.len() < 20
-                        && (event.operation == "open_create_handle" || event.operation == "read")
-                        && displayed.insert((event.path.clone(), event.attributed_pid))
-                    {
-                        println!(
+                    match preview.consider(
+                        &event.path,
+                        event.attributed_pid,
+                        &event.operation,
+                        Instant::now(),
+                    ) {
+                        console::PreviewDecision::Print => println!(
                             "观察到 {}：{}，进程={}，PID={:?}",
                             event.operation,
                             event.path,
@@ -300,7 +313,11 @@ fn capture(mut opts: Options) -> Result<bool, String> {
                                 .map(|p| p.name.as_str())
                                 .unwrap_or("未知"),
                             event.attributed_pid
-                        );
+                        ),
+                        console::PreviewDecision::LimitReached => println!(
+                            "本阶段控制台已展示 100 组访问；其余访问仍完整写入日志。新标记或 30 秒后会重新展示。"
+                        ),
+                        _ => {}
                     }
                     if let Err(e) = report.file(event) {
                         reason = format!("日志写入失败：{e}");
@@ -338,6 +355,7 @@ fn capture(mut opts: Options) -> Result<bool, String> {
                 continue;
             }
             if let Some(label) = label(line) {
+                preview.reset_phase(Instant::now());
                 println!("已标记 [{time}] {label} —— 现在切到目标程序操作，动作之间留 5–10 秒。");
                 if let Err(e) = report.marker(Marker {
                     unix_ms: time,
@@ -406,12 +424,14 @@ fn capture(mut opts: Options) -> Result<bool, String> {
         if last_progress.elapsed() >= Duration::from_secs(5) {
             let count = &collector.lock().unwrap_or_else(|p| p.into_inner()).counters;
             println!(
-                "已运行 {} 秒；系统文件事件={}，范围匹配={}，写盘={}，队列丢弃={}",
+                "已运行 {} 秒；系统文件事件={}，范围匹配={}，写盘={}，队列丢弃={}；本阶段提示={}，已省略提示（重复/限额）={}",
                 start.elapsed().as_secs(),
                 count.file_events,
                 count.scope_matching_events,
                 report.file_rows,
-                count.queue_dropped
+                count.queue_dropped,
+                preview.displayed_count(),
+                preview.suppressed_total()
             );
             last_progress = Instant::now();
         }
@@ -461,7 +481,9 @@ fn capture(mut opts: Options) -> Result<bool, String> {
         );
     }
     if let Some(base) = smoke_base {
-        let _ = fs::remove_file(base.join("source/probe-smoke.docx"));
+        for ext in SMOKE_EXTENSIONS {
+            let _ = fs::remove_file(base.join(format!("source/probe-smoke.{ext}")));
+        }
         let _ = fs::remove_dir(base.join("source"));
         let _ = fs::remove_dir(base);
     }

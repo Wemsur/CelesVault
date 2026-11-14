@@ -327,6 +327,7 @@ pub fn relevant_name(name: &str) -> bool {
         || [
             "wpp.exe",
             "et.exe",
+            "photolaunch.exe",
             "explorer.exe",
             "prevhost.exe",
             "dllhost.exe",
@@ -380,6 +381,14 @@ mod tests {
     #[test]
     fn utf16_stops_at_null() {
         assert_eq!(from_wide(&[65, 0, 66]), "A");
+    }
+    #[test]
+    fn wps_picture_launcher_is_a_related_process() {
+        assert!(relevant_name("PhotoLaunch.exe"));
+    }
+    #[test]
+    fn system_photos_is_not_assumed_to_be_wps() {
+        assert!(!relevant_name("Photos.exe"));
     }
     #[test]
     fn helpers_not_only_wps() {

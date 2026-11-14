@@ -113,8 +113,7 @@ impl Report {
         self.marks.sort_by_key(|m| m.unix_ms);
         let mut groups = BTreeMap::<(usize, String, Option<u32>, String, String), Group>::new();
         let mut summary_groups_dropped = 0;
-        let mut smoke_open = false;
-        let mut smoke_read = false;
+        let mut smoke_checks = SmokeChecks::new(std::process::id());
         let mut malformed_rows = 0;
         for line in BufReader::new(File::open(self.dir.join("events.jsonl"))?).lines() {
             let line = line?;
@@ -163,14 +162,11 @@ impl Report {
                 group.first_unix_ms = group.first_unix_ms.min(e.event_unix_ms);
                 group.last_unix_ms = group.last_unix_ms.max(e.event_unix_ms);
                 group.total_io_bytes += e.io_size.unwrap_or(0);
-                if e.attributed_pid == Some(std::process::id())
-                    && e.path.ends_with("probe-smoke.docx")
-                {
-                    smoke_open |= e.operation == "open_create_handle";
-                    smoke_read |= e.operation == "read";
-                }
+                smoke_checks.observe(&e.path, e.attributed_pid, &e.operation);
             }
         }
+        let smoke_open = smoke_checks.all_opened();
+        let smoke_read = smoke_checks.all_read();
         let capture_started = self.session["capture_started"].as_bool().unwrap_or(false);
         let trace_ok = capture_started
             && health.stop_code == 0
@@ -192,7 +188,7 @@ impl Report {
             "采集完成；覆盖率仍需对照人工操作"
         };
         let groups: Vec<_> = groups.into_values().collect();
-        let summary = json!({"tool_version":env!("CARGO_PKG_VERSION"),"status":status,"capture_started":capture_started,"trace_runtime_ok":trace_ok,"no_observed_transport_losses":no_losses,"stop_reason":reason,"finished_unix_ms":windows::unix_ms(),"counters":counters,"trace_health":health,"file_rows_written":self.file_rows,"log_bytes":self.bytes,"log_write_failures":self.log_write_failures,"record_limit_hit":self.limit_hit,"malformed_rows":malformed_rows,"summary_groups_dropped":summary_groups_dropped,"markers":self.marks,"groups":groups,"smoke_test":if smoke {json!({"observed_own_open":smoke_open,"observed_own_read":smoke_read,"passed":trace_ok&&no_losses&&smoke_open&&smoke_read})}else{Value::Null}});
+        let summary = json!({"tool_version":env!("CARGO_PKG_VERSION"),"status":status,"capture_started":capture_started,"trace_runtime_ok":trace_ok,"no_observed_transport_losses":no_losses,"stop_reason":reason,"finished_unix_ms":windows::unix_ms(),"counters":counters,"trace_health":health,"file_rows_written":self.file_rows,"log_bytes":self.bytes,"log_write_failures":self.log_write_failures,"record_limit_hit":self.limit_hit,"malformed_rows":malformed_rows,"summary_groups_dropped":summary_groups_dropped,"markers":self.marks,"groups":groups,"smoke_test":if smoke {json!({"observed_own_open":smoke_open,"observed_own_read":smoke_read,"formats":smoke_checks.formats,"passed":trace_ok&&no_losses&&smoke_checks.complete()})}else{Value::Null}});
         self.session["finished_unix_ms"] = summary["finished_unix_ms"].clone();
         self.session["stop_reason"] = json!(reason);
         self.session["status"] = json!(status);
@@ -209,7 +205,14 @@ impl Report {
         md.push_str("## 如何解读\n\n- `open_create_handle` 是系统打开文件句柄，不等同于老师正式打开。以手动标记区间作对照。\n- `name_*_metadata` 仅是文件名称映射信息，不能算作打开证据。\n- 路径未关联统计包含全系统范围外的事件，不可直接当作教学文件漏收数。\n- PID/TID 归属来源记录在 events.jsonl；未知归属不会被猜成 WPS。\n- 进程启动/线程生命周期用于关联；实时进程路径查询不是历史 PID 身份的绝对证明。\n- 事件不采样、不聚合写盘；下面按区间/文件/进程/操作汇总。时间是 UTC Unix 毫秒。\n- 首次写入后每秒刷新，但不保证强制杀进程或突然断电时缓冲区完整。\n\n");
         md.push_str(&format!("## 采集健康\n\n- ETW 丢事件：{}；丢实时缓冲区：{}\n- 应用队列丢弃：{}；日志写入失败：{}；达到日志上限：{}\n- TDH 模式解析失败：{}；属性读取失败：{}\n- 全局未关联路径事件：{}；匹配事件中未知进程归属：{}\n- 名称缓存重置：{}；回调异常：{}\n- 会话停止返回码：{}；消费者返回码：{:?}；消费者已退出：{}\n\n",health.events_lost,health.realtime_buffers_lost,counters.queue_dropped,self.log_write_failures,self.limit_hit,counters.schema_failures,counters.property_failures,counters.path_unresolved_events,counters.unknown_attribution_matching_events,counters.name_cache_resets,counters.callback_panics,health.stop_code,health.consumer_code,health.consumer_joined));
         if smoke {
-            md.push_str(&format!("## 本机冒烟测试\n\n观察到本工具自己的打开：{smoke_open}；读取：{smoke_read}。仅检查普通文件 I/O，不代表 WPS 已验证。\n\n"));
+            md.push_str(&format!("## 本机冒烟测试\n\n所有格式都观察到本工具自己的打开：{smoke_open}；读取：{smoke_read}。仅检查普通文件 I/O，不代表真实 WPS 的各类文件行为已验证。\n\n| 格式 | 打开 | 读取 |\n|---|---|---|\n"));
+            for (ext, result) in &smoke_checks.formats {
+                md.push_str(&format!(
+                    "| {ext} | {} | {} |\n",
+                    result.opened, result.read
+                ));
+            }
+            md.push('\n');
         }
         md.push_str("## 操作标记\n\n| UTC Unix 毫秒 | 标签 |\n|---|---|\n");
         for marker in &self.marks {
@@ -262,9 +265,98 @@ pub fn interval_for(time: u64, markers: &[Marker]) -> usize {
     markers.partition_point(|m| m.unix_ms <= time)
 }
 
+#[derive(Default, Serialize)]
+struct FormatObservation {
+    opened: bool,
+    read: bool,
+}
+struct SmokeChecks {
+    pid: u32,
+    formats: BTreeMap<&'static str, FormatObservation>,
+}
+impl SmokeChecks {
+    fn new(pid: u32) -> Self {
+        Self {
+            pid,
+            formats: crate::model::SMOKE_EXTENSIONS
+                .iter()
+                .copied()
+                .map(|ext| (ext, FormatObservation::default()))
+                .collect(),
+        }
+    }
+    fn observe(&mut self, path: &str, pid: Option<u32>, operation: &str) {
+        if pid != Some(self.pid) {
+            return;
+        }
+        let name = path.rsplit(['\\', '/']).next().unwrap_or(path);
+        let Some(ext) = name.strip_prefix("probe-smoke.") else {
+            return;
+        };
+        let Some(result) = self.formats.get_mut(ext) else {
+            return;
+        };
+        result.opened |= operation == "open_create_handle";
+        result.read |= operation == "read";
+    }
+    fn all_opened(&self) -> bool {
+        self.formats.values().all(|result| result.opened)
+    }
+    fn all_read(&self) -> bool {
+        self.formats.values().all(|result| result.read)
+    }
+    fn complete(&self) -> bool {
+        self.all_opened() && self.all_read()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn docx_success_is_not_enough_for_all_formats() {
+        let mut check = SmokeChecks::new(123);
+        check.observe("D:/probe-smoke.docx", Some(123), "open_create_handle");
+        check.observe("D:/probe-smoke.docx", Some(123), "read");
+        assert!(!check.complete());
+    }
+    #[test]
+    fn each_format_keeps_open_and_read_evidence() {
+        let mut check = SmokeChecks::new(123);
+        for ext in ["docx", "pdf", "jpg"] {
+            check.observe(
+                &format!("D:/probe-smoke.{ext}"),
+                Some(123),
+                "open_create_handle",
+            );
+            check.observe(&format!("D:/probe-smoke.{ext}"), Some(123), "read");
+        }
+        assert!(check.complete());
+        assert!(check.formats["pdf"].opened && check.formats["pdf"].read);
+        assert!(check.formats["jpg"].opened && check.formats["jpg"].read);
+    }
+    #[test]
+    fn another_process_cannot_supply_smoke_evidence() {
+        let mut check = SmokeChecks::new(123);
+        check.observe("D:/probe-smoke.docx", Some(456), "open_create_handle");
+        check.observe("D:/probe-smoke.docx", Some(456), "read");
+        assert!(!check.formats["docx"].opened && !check.formats["docx"].read);
+    }
+    #[test]
+    fn a_missing_pdf_read_fails_even_with_all_opens() {
+        let mut check = SmokeChecks::new(123);
+        for ext in ["docx", "pdf", "jpg"] {
+            check.observe(
+                &format!("D:/probe-smoke.{ext}"),
+                Some(123),
+                "open_create_handle",
+            );
+            if ext != "pdf" {
+                check.observe(&format!("D:/probe-smoke.{ext}"), Some(123), "read");
+            }
+        }
+        assert!(!check.complete());
+    }
     #[test]
     fn delayed_etw_uses_event_time_not_arrival() {
         let m = vec![

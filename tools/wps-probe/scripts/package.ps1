@@ -1,6 +1,7 @@
 param(
-    [string]$Name = 'CelesVault-Probe-0.1.0-win-x64',
-    [switch]$SkipBuild
+    [string]$Name = 'CelesVault-Probe-0.1.1-win-x64',
+    [switch]$SkipBuild,
+    [string]$ConfigPath
 )
 $ErrorActionPreference = 'Stop'
 $project = Split-Path $PSScriptRoot -Parent
@@ -19,13 +20,20 @@ if (-not $SkipBuild) {
         if ($LASTEXITCODE -ne 0) { throw 'Rust release build failed' }
     } finally { $env:RUSTFLAGS = $previous }
 }
+$configuration = Join-Path $project 'probe-config.json'
+if ($ConfigPath) {
+    if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) { throw "Config not found: $ConfigPath" }
+    Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json | Out-Null
+    $configuration = $ConfigPath
+}
 $exe = Join-Path $project 'target/x86_64-pc-windows-msvc/release/celesvault-probe.exe'
 if (-not (Test-Path -LiteralPath $exe)) { throw "Binary not found: $exe" }
 New-Item -ItemType Directory -Path $destination | Out-Null
 Copy-Item -LiteralPath $exe -Destination $destination
-foreach ($file in @('Start-Probe.cmd', 'probe-config.json', 'README.md', 'VALIDATION.md')) {
+foreach ($file in @('Start-Probe.cmd', 'README.md', 'VALIDATION.md')) {
     Copy-Item -LiteralPath (Join-Path $project $file) -Destination $destination
 }
+Copy-Item -LiteralPath $configuration -Destination (Join-Path $destination 'probe-config.json')
 $hash = (Get-FileHash -LiteralPath (Join-Path $destination 'celesvault-probe.exe') -Algorithm SHA256).Hash
 @("CelesVault WPS Probe", "SHA256 celesvault-probe.exe: $hash", 'Logs are private local metadata. No original documents are included.') | Set-Content -LiteralPath (Join-Path $destination 'BUILD.txt') -Encoding UTF8
 Compress-Archive -LiteralPath $destination -DestinationPath $zip -CompressionLevel Optimal
