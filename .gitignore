@@ -1,0 +1,4 @@
+# Independent diagnostic builds and private local logs
+/tools/wps-probe/target/
+/tools/wps-probe/logs/
+/dist/
