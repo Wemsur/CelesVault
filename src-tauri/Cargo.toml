@@ -1,0 +1,29 @@
+[package]
+name = "celesvault"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "WPS 教学资料收纳与归档工具"
+
+[lib]
+name = "celesvault_app"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = "=2.5.5"
+
+[dependencies]
+tauri = { version = "=2.10.2", features = ["tray-icon", "image-png"] }
+tauri-plugin-single-instance = "=2.3.4"
+tauri-plugin-dialog = "=2.4.0"
+tauri-plugin-opener = "=2.5.0"
+serde.workspace = true
+serde_json.workspace = true
+vault-core = { path = "../crates/vault-core" }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.61.2", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_WindowsProgramming"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

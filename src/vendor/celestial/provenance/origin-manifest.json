@@ -1,0 +1,1168 @@
+{
+	"schema_version": 1,
+	"extracted_at": "2026-11-14",
+	"source_root": "C:\\Users\\iexam\\github-project\\CelestialLauncher",
+	"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+	"source_remote": "https://github.com/Wemsur/modrinth.git",
+	"source_mode": "Current working-tree bytes, not git-show/HEAD reconstruction. Unrelated working-tree modifications were not copied.",
+	"hash_algorithm": "SHA-256",
+	"files": [
+		{
+			"destination": "ui/components/launcher/NavButton.vue",
+			"source": "apps/app-frontend/src/components/ui/NavButton.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "20908a5dd9eb5985e8fd3a88347f5781f787780eb30067ffcf38b71eaec4ba0b",
+			"vendored_sha256": "20908a5dd9eb5985e8fd3a88347f5781f787780eb30067ffcf38b71eaec4ba0b",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/launcher/WindowControls.vue",
+			"source": "apps/app-frontend/src/components/ui/WindowControls.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "80369758fa2d01778d14a46f2ca9757f0c8faab24208dc4ff5be3d2047283ccd",
+			"vendored_sha256": "80c719c5649f25132ee426af4d5ff2bc0aa81b6bed0295012bc735f50e8ef185",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Replace Tauri/settings/OS business imports with host usePlatform window contract; showControls boolean defaults to true.",
+				"Minimize/toggleMaximize/hide-to-tray actions; state listener uses synchronous unmount registration and late-listener cleanup.",
+				"Chinese accessibility labels; retain template geometry, Teleport, hit areas and --window-controls-width; add width-change/window-error events."
+			]
+		},
+		{
+			"destination": "ui/components/base/Card.vue",
+			"source": "packages/ui/src/components/base/Card.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "c40010927adc50d184ed45b7a4da60c83443ed9b623af9c93f4728a72814070e",
+			"vendored_sha256": "2d7d6cb8941664f82c86e8079930d7e482824c2a91989a6b00eb777bb75dc8c3",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Use direct local component import instead of shared barrel.",
+				"Chinese accessibility label."
+			]
+		},
+		{
+			"destination": "ui/components/base/Checkbox.vue",
+			"source": "packages/ui/src/components/base/Checkbox.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "fe1ea9e529c4a9bb04c0abfa9dc6de365b9f26749f5c0f20312adfae7a7bbc8a",
+			"vendored_sha256": "fe1ea9e529c4a9bb04c0abfa9dc6de365b9f26749f5c0f20312adfae7a7bbc8a",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/Toggle.vue",
+			"source": "packages/ui/src/components/base/Toggle.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "2b2c82284a2b202fd77a17a216a01f948e45a64841a49d3ddb02bee1150a20c4",
+			"vendored_sha256": "2b2c82284a2b202fd77a17a216a01f948e45a64841a49d3ddb02bee1150a20c4",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/DropdownSelect.vue",
+			"source": "packages/ui/src/components/base/DropdownSelect.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "39cef19231a55c9e635be0757ad06a7756999bf67e894e214059a6e1b0601a25",
+			"vendored_sha256": "ab5d5b85809fb7d6af633fd599116125697a37c783d0e7c1cf3cc988455db54e",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Chinese fallback placeholder."
+			]
+		},
+		{
+			"destination": "ui/components/base/Combobox.vue",
+			"source": "packages/ui/src/components/base/Combobox.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "3bf2c13fc98e3717f7e2c5e74aa32fd3ab2c715200d0fe018123aca8df1ed679",
+			"vendored_sha256": "ed58a241c7b191091e558b31be809b0c759c1e4052dab2a86f8e836acb691c9f",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Chinese placeholder.",
+				"Chinese search placeholder.",
+				"Chinese empty-result message."
+			]
+		},
+		{
+			"destination": "ui/components/base/LoadingIndicator.vue",
+			"source": "packages/ui/src/components/base/LoadingIndicator.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "c6ff855614881d540be47c493f0335c10fee9a91e2a32456f3ee32b92e09b6b8",
+			"vendored_sha256": "d4c2e479ea6ec54c9fdb9a796ae2c843cf2e39eb16849460fee0bba555ca51e9",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Chinese loading caption; retain original animation."
+			]
+		},
+		{
+			"destination": "ui/components/base/buttons/ButtonFrame.vue",
+			"source": "packages/ui/src/components/base/buttons/ButtonFrame.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "4a7a4f3e6a7500c9da8e3ceb0571d29f366bcb7bb06086f54d6ddb7d9963755b",
+			"vendored_sha256": "4a7a4f3e6a7500c9da8e3ceb0571d29f366bcb7bb06086f54d6ddb7d9963755b",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/buttons/Button.vue",
+			"source": "packages/ui/src/components/base/buttons/Button.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "c82c6f7e62f63190dd56aff9e94ae7a39639c790149a781351986fbd80e50f9f",
+			"vendored_sha256": "c82c6f7e62f63190dd56aff9e94ae7a39639c790149a781351986fbd80e50f9f",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/buttons/IconButton.vue",
+			"source": "packages/ui/src/components/base/buttons/IconButton.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "6c586021fe6805fe85d057ba763a1934dd69e977a67689570d75519a402dc3da",
+			"vendored_sha256": "6c586021fe6805fe85d057ba763a1934dd69e977a67689570d75519a402dc3da",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/buttons/types.ts",
+			"source": "packages/ui/src/components/base/buttons/types.ts",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "05a457f96da822c914f39d34fb9393d1597fdb1738a5166107d75ec68b4291f3",
+			"vendored_sha256": "05a457f96da822c914f39d34fb9393d1597fdb1738a5166107d75ec68b4291f3",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/buttons/ContextMenu.vue",
+			"source": "packages/ui/src/components/base/buttons/ContextMenu.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "48938f8d8b759ff869d809fedcbb4388c1fd52b9404207fa6a14122491ae81db",
+			"vendored_sha256": "48938f8d8b759ff869d809fedcbb4388c1fd52b9404207fa6a14122491ae81db",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/buttons/TeleportOverflowMenu.vue",
+			"source": "packages/ui/src/components/base/buttons/TeleportOverflowMenu.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "a90a74f4e5c353fa083469d1a566cc098a79e3b1140067458d00f394a46681c1",
+			"vendored_sha256": "b8499021f3881b1d1ac7d2a489e8553f5437bfa170c4bda619b0e97a05e02fc8",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Copy original component; preserve DOM/styles/menu behavior.",
+				"Forward explicit aria-label so undefined fallthrough attrs cannot erase icon-only button label; frontend observation fix, 2026-11-14."
+			]
+		},
+		{
+			"destination": "ui/components/base/buttons/button-menu/button-menu.ts",
+			"source": "packages/ui/src/components/base/buttons/button-menu/button-menu.ts",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "31ae510252249352468e57c075933c665df19a6b72620fcfd112f8913033b8c5",
+			"vendored_sha256": "31ae510252249352468e57c075933c665df19a6b72620fcfd112f8913033b8c5",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/buttons/button-menu/ButtonMenuItem.vue",
+			"source": "packages/ui/src/components/base/buttons/button-menu/ButtonMenuItem.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "3ec8d20b7688f8ecdd908ec0d21cd4a7d35e40f007aade02ba4a83689c0f316b",
+			"vendored_sha256": "3ec8d20b7688f8ecdd908ec0d21cd4a7d35e40f007aade02ba4a83689c0f316b",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/buttons/button-menu/ButtonMenuPanel.vue",
+			"source": "packages/ui/src/components/base/buttons/button-menu/ButtonMenuPanel.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "79a25aff38c070a137f68dfa375f6db554289736b51706023d2a57ef51d54f72",
+			"vendored_sha256": "79a25aff38c070a137f68dfa375f6db554289736b51706023d2a57ef51d54f72",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/buttons/button-menu/ButtonMenuSubmenu.vue",
+			"source": "packages/ui/src/components/base/buttons/button-menu/ButtonMenuSubmenu.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "1f8071d7005e217861f8dc323b611d4f00e89e9b85ba052e9f9ecd7f42af2769",
+			"vendored_sha256": "1f8071d7005e217861f8dc323b611d4f00e89e9b85ba052e9f9ecd7f42af2769",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/inputs/InputFrame.vue",
+			"source": "packages/ui/src/components/base/inputs/InputFrame.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "0f8b8dc2d8871cea86379f49fa8175b43bd06193b2315b0a5083f8f3d5bd8f61",
+			"vendored_sha256": "0f8b8dc2d8871cea86379f49fa8175b43bd06193b2315b0a5083f8f3d5bd8f61",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/inputs/types.ts",
+			"source": "packages/ui/src/components/base/inputs/types.ts",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "91dbd5afea361cce1b6026fd62d68687d7f6032f74e8af2e436c3c00adf13aa8",
+			"vendored_sha256": "91dbd5afea361cce1b6026fd62d68687d7f6032f74e8af2e436c3c00adf13aa8",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/inputs/Input.vue",
+			"source": "packages/ui/src/components/base/inputs/Input.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "3f332533fb148d85355f02a4725ce95a231d07395da18e58a8efbd7448edcd31",
+			"vendored_sha256": "55d371dd7fa7d8d6ee3280e5558599a1d368e6752a48f798ace75713630c5a1b",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Chinese clear-input accessibility label."
+			]
+		},
+		{
+			"destination": "ui/components/base/inputs/InputClearButton.vue",
+			"source": "packages/ui/src/components/base/inputs/InputClearButton.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "34fe98e19c749f5ec139ed1f7b5b6d5310e362eb02d3601bcc284b2de06a82db",
+			"vendored_sha256": "1053c082f962a9992f900062ec6116bb6f7858c4452acf75a43a0d2dcd0fe76c",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Chinese clear-input accessibility label."
+			]
+		},
+		{
+			"destination": "ui/components/modal/NewModal.vue",
+			"source": "packages/ui/src/components/modal/NewModal.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "99c8345efa577cd97f58425e61d63d0a50a532b760abc4e07c85e8be29f41601",
+			"vendored_sha256": "7185047f6be795f39ee4a84117050b3d6cbb577359926a0e28fa1f102c5ae6bd",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Import only copied button.",
+				"Remove translation composable import.",
+				"Import only modal-behavior, not business provider barrel.",
+				"Remove translation messages.",
+				"Remove translation formatter.",
+				"Literal Chinese close label.",
+				"Remove unrelated English fallback.",
+				"Remove undeclared legacy default from typed withDefaults."
+			]
+		},
+		{
+			"destination": "ui/components/modal/TabbedModal.vue",
+			"source": "packages/ui/src/components/modal/TabbedModal.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "d53c189af16bc88acb39f386b2867a62e7b28565da8fcdb3b0bd2564a116599c",
+			"vendored_sha256": "e0b1dcdb716ec30a70f40465108993a00c4e9fb32c92b561318a12cf265a1910",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Remove translation import.",
+				"Tabs use plain Chinese name/category/badge strings.",
+				"Remove translation formatter.",
+				"Compare plain category strings.",
+				"Render category directly.",
+				"Render name directly, including truncation tooltip.",
+				"Render badge directly."
+			]
+		},
+		{
+			"destination": "ui/components/modal/ConfirmModal.vue",
+			"source": "packages/ui/src/components/modal/ConfirmModal.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "18f12fbeee2f6227a57c26c889ad37931aa4d163a2a2c6a0d750c0b69f208bcc",
+			"vendored_sha256": "63c7d91726828de78a2b8947274f641a46bf0f8ddc735753d0b31d9080066ac1",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Local marked+DOMPurify adapter; no network-capable utils barrel.",
+				"Direct local button import.",
+				"Chinese typed-confirmation prompt.",
+				"Chinese typed-confirmation prompt.",
+				"Chinese confirmation input placeholder.",
+				"Chinese cancel button.",
+				"Chinese fallback title.",
+				"Chinese proceed button."
+			]
+		},
+		{
+			"destination": "ui/composables/modal-stack.ts",
+			"source": "packages/ui/src/composables/modal-stack.ts",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "f44de41993ceeab1849e0a603bf033435128cc355666e2fcab5bfdf50e4714f7",
+			"vendored_sha256": "f44de41993ceeab1849e0a603bf033435128cc355666e2fcab5bfdf50e4714f7",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/composables/scroll-indicator.ts",
+			"source": "packages/ui/src/composables/scroll-indicator.ts",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "b41027030d48b419bc8dc0c46ae25c1481d6683804be3a6a5ddd938e58158919",
+			"vendored_sha256": "b41027030d48b419bc8dc0c46ae25c1481d6683804be3a6a5ddd938e58158919",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/composables/debug-logger.ts",
+			"source": "packages/ui/src/composables/debug-logger.ts",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "e210e739f17216714ed8b1b0d1ffca82801321855384a9a0fb26e02cf04bc96d",
+			"vendored_sha256": "957f76b259a03cc67b9cc7e126e60a43773e7cb3d70e1a4fae50fba38e19d88a",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Use Vite production flag; no browser Node process shim."
+			]
+		},
+		{
+			"destination": "ui/utils/truncate.ts",
+			"source": "packages/ui/src/utils/truncate.ts",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "f1cecd7f63c6398088ac215fbdfe373804dcbdbc1ef5fd39476d892a05ead044",
+			"vendored_sha256": "f1cecd7f63c6398088ac215fbdfe373804dcbdbc1ef5fd39476d892a05ead044",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/utils/use-anchored-teleport.ts",
+			"source": "packages/ui/src/utils/use-anchored-teleport.ts",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "c4dbda63bf5804874da60ac4880d9e64b894f8ec7bfb31e8a760de5b4e0853d1",
+			"vendored_sha256": "c4dbda63bf5804874da60ac4880d9e64b894f8ec7bfb31e8a760de5b4e0853d1",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/providers/create-context.ts",
+			"source": "packages/ui/src/providers/create-context.ts",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "aaf8c1ade2f7248da8f2508a3a621a9ef04f0fb1e742b2e6d0a4b309085fa1bc",
+			"vendored_sha256": "aaf8c1ade2f7248da8f2508a3a621a9ef04f0fb1e742b2e6d0a4b309085fa1bc",
+			"license": "MIT (UnoVue notice retained inline)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/providers/modal-behavior.ts",
+			"source": "packages/ui/src/providers/modal-behavior.ts",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "b8ea50544ecd92de1cc4473d61b9c2ee75c7b029c84f6217208296491cf79725",
+			"vendored_sha256": "b8ea50544ecd92de1cc4473d61b9c2ee75c7b029c84f6217208296491cf79725",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/utils/markdown.ts",
+			"source": "packages/utils/parse.ts",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "659a34f524a97e6a830837663d2f27d77296b9271e49ae0212536d4690069909",
+			"vendored_sha256": "b9688fd4be1dd8b179b78ba38f5d0bfd85c3e789cd2de6b897fbe46ffcc307fc",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"New standalone implementation of required renderString interface, not a copy of original Markdown/network helper.",
+				"marked 15.0.12 output sanitized by DOMPurify; HTML-only profile, no executable elements/remote embeds/styles or automatic image loading/proxy.",
+				"Fail closed to escaped plain text when DOMPurify does not support the current environment."
+			]
+		},
+		{
+			"destination": "styles/variables.scss",
+			"source": "packages/assets/styles/variables.scss",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "866fa67458c2883cd4bb4b09ad84c6b8ce2aa343f62cc0309c7a725053431c6f",
+			"vendored_sha256": "866fa67458c2883cd4bb4b09ad84c6b8ce2aa343f62cc0309c7a725053431c6f",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "styles/normalize.scss",
+			"source": "packages/assets/styles/normalize.scss",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "938579fe16b29b21ebd2e57a7108ab77a4f455025225996a68b7eae46c2d8403",
+			"vendored_sha256": "938579fe16b29b21ebd2e57a7108ab77a4f455025225996a68b7eae46c2d8403",
+			"license": "MIT (normalize.css v8.0.1 notice retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "styles/reset.scss",
+			"source": "packages/assets/styles/reset.scss",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "ba61b3cc219e477f5a12a3b962522a27488356ad61eb35b61b997f6c1e4c8b2a",
+			"vendored_sha256": "ba61b3cc219e477f5a12a3b962522a27488356ad61eb35b61b997f6c1e4c8b2a",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "styles/defaults.scss",
+			"source": "packages/assets/styles/defaults.scss",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "4c9476086bf4dd9185684dfba07a3038af739143a22d3a5bd89c379735142400",
+			"vendored_sha256": "4c9476086bf4dd9185684dfba07a3038af739143a22d3a5bd89c379735142400",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "styles/accessibility.scss",
+			"source": "packages/assets/styles/accessibility.scss",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "3ad50a71cba863b48ff5071d21a60d1e916fb3463bea5c69890f46883769a168",
+			"vendored_sha256": "3ad50a71cba863b48ff5071d21a60d1e916fb3463bea5c69890f46883769a168",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "styles/classes.scss",
+			"source": "packages/assets/styles/classes.scss",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "2238a329b058009b6404fda908bebd0b077ec3544d97fa6a1b38dc486e117c7e",
+			"vendored_sha256": "93af663c889fd68b8c4474bbb39060175ce73de009ee64e70fb8fbfdf144cf16",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Remove unused legacy native-select remote placeholder URL; retain other global rules."
+			]
+		},
+		{
+			"destination": "styles/tailwind-utilities.scss",
+			"source": "packages/ui/src/styles/tailwind-utilities.css",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "c6957400498daa55d007f3be5ba7b4463cd3a1a25ac95cc03e55c7965b13501e",
+			"vendored_sha256": "c6957400498daa55d007f3be5ba7b4463cd3a1a25ac95cc03e55c7965b13501e",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "styles/tailwind-preset.ts",
+			"source": "packages/tooling-config/tailwind/tailwind-preset.ts",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "56a9a2a482926121ddd24126022170f4e2434fb8d3200b625e974c87ce4399a8",
+			"vendored_sha256": "1fa03de731241245838ff6568c2d462803aed9bd3ba233bed6de4e277f57be79",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Omit unused container-query plugin import; no extracted component uses it.",
+				"No unused plugin dependency; retain token map and disabled preflight."
+			]
+		},
+		{
+			"destination": "styles/launcher-before.scss",
+			"source": "apps/app-frontend/src/assets/stylesheets/global.scss",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "55567d49bbf9b1d5632fdf2793cddbe3ad31dbb03b7d75a18e04692d6750cfbd",
+			"vendored_sha256": "9d319ec58f1808d488e3e3b4895897c2402856c6bb6f096be921852ff2472ef3",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Extract only original fixed-body/link/scrollbar rules before Omorphia.",
+				"Exclude background-image, business-layout and remote-font rules.",
+				"Include original source line 66 closing body brace; fixed during frontend preview, 2026-11-14."
+			],
+			"source_lines": [
+				[
+					61,
+					66
+				],
+				[
+					90,
+					95
+				],
+				[
+					119,
+					145
+				]
+			]
+		},
+		{
+			"destination": "styles/launcher-after.scss",
+			"source": "apps/app-frontend/src/assets/stylesheets/global.scss",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "55567d49bbf9b1d5632fdf2793cddbe3ad31dbb03b7d75a18e04692d6750cfbd",
+			"vendored_sha256": "2728c26addacdb5f36aa75d4f973fc5c1b4877fc62c27b172c7f2e327d14fada",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Extract only original input rules and light-sense edge highlights after Omorphia.",
+				"Exclude background-image, business-layout and remote-font rules."
+			],
+			"source_lines": [
+				[
+					188,
+					238
+				],
+				[
+					475,
+					510
+				]
+			]
+		},
+		{
+			"destination": "styles/index.scss",
+			"source": null,
+			"source_head": null,
+			"source_sha256": null,
+			"vendored_sha256": "31a4d04d801e44b521a245a36ad169340f3d9be9607aefa3a6212171ad47abc4",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"New stylesheet entry with only local imports; preserve Launcher-before/Omorphia/Launcher-after cascade.",
+				"defaults imports reset; intentionally omit Inter because host owns offline fonts."
+			]
+		},
+		{
+			"destination": "assets/icons/home.svg",
+			"source": "packages/assets/icons/home.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "c07a68e439cabf03a3390df1e7d5a68527230f0332d02bb2d8002b9dd4417aa3",
+			"vendored_sha256": "c07a68e439cabf03a3390df1e7d5a68527230f0332d02bb2d8002b9dd4417aa3",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/library.svg",
+			"source": "packages/assets/icons/library.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "022d4f79d119c4d66346a40537f1d67b999de07b3961bda1cc826d05013b42b4",
+			"vendored_sha256": "022d4f79d119c4d66346a40537f1d67b999de07b3961bda1cc826d05013b42b4",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/settings.svg",
+			"source": "packages/assets/icons/settings.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "078655e3997b77152247cd5552802616ff147c47f3a61d3209b478034db3a875",
+			"vendored_sha256": "078655e3997b77152247cd5552802616ff147c47f3a61d3209b478034db3a875",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/search.svg",
+			"source": "packages/assets/icons/search.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "831544dfca5f0018b868483a761e0ca8483862ec89679406d6440d8d6c96d780",
+			"vendored_sha256": "831544dfca5f0018b868483a761e0ca8483862ec89679406d6440d8d6c96d780",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/x.svg",
+			"source": "packages/assets/icons/x.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "0b984a3a97396450288d14afa1b703f37788ba623a463677744a8fcd75715cc9",
+			"vendored_sha256": "0b984a3a97396450288d14afa1b703f37788ba623a463677744a8fcd75715cc9",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/folder.svg",
+			"source": "packages/assets/icons/folder.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "bdf46a3b30e7a88538e27eb3b66f712e1c6ae18f30fcf7da355bdb2210886c98",
+			"vendored_sha256": "bdf46a3b30e7a88538e27eb3b66f712e1c6ae18f30fcf7da355bdb2210886c98",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/archive.svg",
+			"source": "packages/assets/icons/archive.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "842fe33d56cdf3c9ac9ebb023ba2fb63d33604d731e662e053c02d4ef6811896",
+			"vendored_sha256": "842fe33d56cdf3c9ac9ebb023ba2fb63d33604d731e662e053c02d4ef6811896",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/square-split-horizontal.svg",
+			"source": "packages/assets/icons/square-split-horizontal.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "2a5b81b75bdb11db5e8ed54bc7803704e93f9702a0c1fa10415d77c5a3dfdc7d",
+			"vendored_sha256": "2a5b81b75bdb11db5e8ed54bc7803704e93f9702a0c1fa10415d77c5a3dfdc7d",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/plug.svg",
+			"source": "packages/assets/icons/plug.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "269ae9398604dc25d2013ffab16675f3a3f3721cc86499302f665d4a9a6e8852",
+			"vendored_sha256": "269ae9398604dc25d2013ffab16675f3a3f3721cc86499302f665d4a9a6e8852",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/unplug.svg",
+			"source": "packages/assets/icons/unplug.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "010c6d6c72938eb76dc8af8a2b599026578076ff7f963f1d56d8c6007905df98",
+			"vendored_sha256": "010c6d6c72938eb76dc8af8a2b599026578076ff7f963f1d56d8c6007905df98",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/pin.svg",
+			"source": "packages/assets/icons/pin.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "5e83798f02c79dc455d60e11a3af863b724431035e39fb085d98c6676ff7ab24",
+			"vendored_sha256": "5e83798f02c79dc455d60e11a3af863b724431035e39fb085d98c6676ff7ab24",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/plus.svg",
+			"source": "packages/assets/icons/plus.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "2bef464477eae49f2d2d3872a54e2a0f0e9ed48f21abb6b51b9948c8f19cacd6",
+			"vendored_sha256": "2bef464477eae49f2d2d3872a54e2a0f0e9ed48f21abb6b51b9948c8f19cacd6",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/chevron-down.svg",
+			"source": "packages/assets/icons/chevron-down.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "63e3eb7320c76bb6d59f96b37e7b8010db8812cf4704963fc123a866c46711d0",
+			"vendored_sha256": "63e3eb7320c76bb6d59f96b37e7b8010db8812cf4704963fc123a866c46711d0",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/check.svg",
+			"source": "packages/assets/icons/check.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "614208d5326af3f85ec0308b3e30963c46bd3d4aa6c9c84c41387d839df21636",
+			"vendored_sha256": "614208d5326af3f85ec0308b3e30963c46bd3d4aa6c9c84c41387d839df21636",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/info.svg",
+			"source": "packages/assets/icons/info.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "dd244e4239a4af590741ab453c24b298e69bcc2210cf3c2bd4546cab522d9e90",
+			"vendored_sha256": "dd244e4239a4af590741ab453c24b298e69bcc2210cf3c2bd4546cab522d9e90",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/server.svg",
+			"source": "packages/assets/icons/server.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "b37eec7b2558c592c09380fe2eff7ff0fcf6132cdd306954c2606ec620ecbc83",
+			"vendored_sha256": "b37eec7b2558c592c09380fe2eff7ff0fcf6132cdd306954c2606ec620ecbc83",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/minimize.svg",
+			"source": "packages/assets/icons/minimize.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "98e83e7a94374386c187f7ba611662ebd56b32267a3bff41947b7dd37adb55b7",
+			"vendored_sha256": "98e83e7a94374386c187f7ba611662ebd56b32267a3bff41947b7dd37adb55b7",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/maximize.svg",
+			"source": "packages/assets/icons/maximize.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "0711169a48cfd1ca3012529d27a09ad6445de2e534e8a9c654ff572949ef01f0",
+			"vendored_sha256": "0711169a48cfd1ca3012529d27a09ad6445de2e534e8a9c654ff572949ef01f0",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/restore.svg",
+			"source": "packages/assets/icons/restore.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "a9673e610bb645e937fc888c846ce24efa7a126d91bfd5b5db489ac4bffc05fd",
+			"vendored_sha256": "a9673e610bb645e937fc888c846ce24efa7a126d91bfd5b5db489ac4bffc05fd",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/dropdown.svg",
+			"source": "packages/assets/icons/dropdown.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "ecd3ee859692ed16f5dfbbe1a8a82d9c8ad62d11e91f53eea416d6401b8f3a95",
+			"vendored_sha256": "ecd3ee859692ed16f5dfbbe1a8a82d9c8ad62d11e91f53eea416d6401b8f3a95",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/minus.svg",
+			"source": "packages/assets/icons/minus.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "8c25995b76e212aea9e0b2985d9e1334430e33bf88cf2b26dcee7777cdb4ef8f",
+			"vendored_sha256": "8c25995b76e212aea9e0b2985d9e1334430e33bf88cf2b26dcee7777cdb4ef8f",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/right-arrow.svg",
+			"source": "packages/assets/icons/right-arrow.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "dd61308c794ea2a4921a16bb39498ea58b058510441dd3381c296fcf72f346ce",
+			"vendored_sha256": "dd61308c794ea2a4921a16bb39498ea58b058510441dd3381c296fcf72f346ce",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/chevron-left.svg",
+			"source": "packages/assets/icons/chevron-left.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "74ee67536a6df0957bd3f2e29682e29eb6a60cc54b2e7a40faf1f83be1dffab9",
+			"vendored_sha256": "74ee67536a6df0957bd3f2e29682e29eb6a60cc54b2e7a40faf1f83be1dffab9",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/chevron-right.svg",
+			"source": "packages/assets/icons/chevron-right.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "2da133792caf419e12add4eae072228ad04f575f792d8485ae1f1e8ac2b15f1e",
+			"vendored_sha256": "2da133792caf419e12add4eae072228ad04f575f792d8485ae1f1e8ac2b15f1e",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/radio-button.svg",
+			"source": "packages/assets/icons/radio-button.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "321871233230353da5c2de86bf3a1d703c017930a46d7c2e5cc1e160ba78d366",
+			"vendored_sha256": "321871233230353da5c2de86bf3a1d703c017930a46d7c2e5cc1e160ba78d366",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/radio-button-checked.svg",
+			"source": "packages/assets/icons/radio-button-checked.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "c38b7d43c4c6aa0d0a4ecec41ae739bab70734e5c9760d9b68b1d19788cd0252",
+			"vendored_sha256": "c38b7d43c4c6aa0d0a4ecec41ae739bab70734e5c9760d9b68b1d19788cd0252",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/trash.svg",
+			"source": "packages/assets/icons/trash.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "ade8f7f26f3c8aeb3f7b046e93d26aaf159e2cb29b0c42a4134f7b7e7e86ce36",
+			"vendored_sha256": "ade8f7f26f3c8aeb3f7b046e93d26aaf159e2cb29b0c42a4134f7b7e7e86ce36",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/file.svg",
+			"source": "packages/assets/icons/file.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "4ccd73b2a09fca4e21ce8179ed31762cdbae16498b7f56cbc85f6930212ce5de",
+			"vendored_sha256": "4ccd73b2a09fca4e21ce8179ed31762cdbae16498b7f56cbc85f6930212ce5de",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/file-text.svg",
+			"source": "packages/assets/icons/file-text.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "5567ce82dbb17deffb7042ddda517260b264e0e5fd9e1b7b042eb44ca7754f1d",
+			"vendored_sha256": "5567ce82dbb17deffb7042ddda517260b264e0e5fd9e1b7b042eb44ca7754f1d",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/file-image.svg",
+			"source": "packages/assets/icons/file-image.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "91654ebb0e15cd00cc8a91ebc6bcbb1e932225a858189f1ebc5c69ea45c5b9a1",
+			"vendored_sha256": "91654ebb0e15cd00cc8a91ebc6bcbb1e932225a858189f1ebc5c69ea45c5b9a1",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/file-archive.svg",
+			"source": "packages/assets/icons/file-archive.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "f0fa89f46aabb7c6944ede9d123cc27348f21e2c65f24685ff784a060b72e827",
+			"vendored_sha256": "f0fa89f46aabb7c6944ede9d123cc27348f21e2c65f24685ff784a060b72e827",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/copy.svg",
+			"source": "packages/assets/icons/copy.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "9f9bb2f7f943b350f0455a0b599946bd2ef4dbfcc6bd9a6e4f44149d7d5e161c",
+			"vendored_sha256": "9f9bb2f7f943b350f0455a0b599946bd2ef4dbfcc6bd9a6e4f44149d7d5e161c",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/refresh-cw.svg",
+			"source": "packages/assets/icons/refresh-cw.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "b0836e2d489760c8bf7a1d5357bd39a1eebdf3e6514db42454f142009b7e36e1",
+			"vendored_sha256": "b0836e2d489760c8bf7a1d5357bd39a1eebdf3e6514db42454f142009b7e36e1",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/download.svg",
+			"source": "packages/assets/icons/download.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "d9b2277a2c4715afedeb5ad299d77ef6638d8012fa16ea621d167f8f879983f7",
+			"vendored_sha256": "d9b2277a2c4715afedeb5ad299d77ef6638d8012fa16ea621d167f8f879983f7",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/upload.svg",
+			"source": "packages/assets/icons/upload.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "0d000a55ae27c6c6e338b7e270dd0de1d74a3f28b21c03ed73e1482fb967cbb4",
+			"vendored_sha256": "0d000a55ae27c6c6e338b7e270dd0de1d74a3f28b21c03ed73e1482fb967cbb4",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/calendar.svg",
+			"source": "packages/assets/icons/calendar.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "4feaa0a160243da9be61db1bfd0d2df6f2c5bfeef6daf16357828b3cadf79b34",
+			"vendored_sha256": "4feaa0a160243da9be61db1bfd0d2df6f2c5bfeef6daf16357828b3cadf79b34",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/undo.svg",
+			"source": "packages/assets/icons/undo.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "fa5d4901dfcc9bbfcb357fd909c1a7a3d1fe994694c3faa5080ffb8ee0b93b0c",
+			"vendored_sha256": "fa5d4901dfcc9bbfcb357fd909c1a7a3d1fe994694c3faa5080ffb8ee0b93b0c",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/grid.svg",
+			"source": "packages/assets/icons/grid.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "a51e38bde554ca7e71c05b15f67acef69304e0a47c57f6c4e2a145c64d63b5d9",
+			"vendored_sha256": "a51e38bde554ca7e71c05b15f67acef69304e0a47c57f6c4e2a145c64d63b5d9",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/list.svg",
+			"source": "packages/assets/icons/list.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "07be8c101bd4845eb9388c11a57adf24841398590d5e38e6b549adc9d47a6b52",
+			"vendored_sha256": "07be8c101bd4845eb9388c11a57adf24841398590d5e38e6b549adc9d47a6b52",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/generated-icons.ts",
+			"source": "packages/assets/generated-icons.ts",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "b4debf8a6a79f12709a0374bc15c0a4a49045dfedbb01bfc30ec518c37fe188e",
+			"vendored_sha256": "882b70597d9742b4d27805906eed5a6b149e87e8df5ded583b4aa9efe757d0a3",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Generate only 39 selected original export names and exact SVG paths; no broad icon maps/business/branding imports."
+			]
+		},
+		{
+			"destination": "assets/celestial.svg",
+			"source": "apps/app-frontend/src/assets/celestial.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "53f522acb2ac74e0418be07741c7535539ed851f1055e83cba24f6df8def761f",
+			"vendored_sha256": "53f522acb2ac74e0418be07741c7535539ed851f1055e83cba24f6df8def761f",
+			"license": "User-owned Celestial logo; app frontend copying terms retained",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/index.ts",
+			"source": null,
+			"source_head": null,
+			"source_sha256": null,
+			"vendored_sha256": "11f6ac782d1fa8881ece36c68f3e1473d0d68d0198fac857007370db82eb08f6",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"New narrow assets entry; no stylesheet side effects or Modrinth-brand assets."
+			]
+		},
+		{
+			"destination": "ui/components/base/buttons/index.ts",
+			"source": null,
+			"source_head": null,
+			"source_sha256": null,
+			"vendored_sha256": "659a00f4401e2d1d6988eaf3bc77fb78d5200f76bfe4a79d1e3512d3d88122df",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"New narrow buttons/types barrel containing only copied components."
+			]
+		},
+		{
+			"destination": "ui/components/base/inputs/index.ts",
+			"source": null,
+			"source_head": null,
+			"source_sha256": null,
+			"vendored_sha256": "a765578b48893ca0c290df082072b1df6acb8eba2bab015a4b2e4c9b976916a4",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"New narrow inputs/types barrel containing only copied components."
+			]
+		},
+		{
+			"destination": "ui/providers/index.ts",
+			"source": null,
+			"source_head": null,
+			"source_sha256": null,
+			"vendored_sha256": "4cf6729cd9c63edfdb5e1d5128b61c94ecd1cdddf62dc01f0e47f8459ec48ffd",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"New provider barrel exposes only create-context/modal-behavior; no translation/API/auth/notifications provider."
+			]
+		},
+		{
+			"destination": "ui/index.ts",
+			"source": null,
+			"source_head": null,
+			"source_sha256": null,
+			"vendored_sha256": "c5cbd8ed7cc473054a7f37734e9bc8732a9567ec136a4ab48fa62266c66f8beb",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"New UI entry exports only extracted component/composable/provider/type closure. No upstream whole-barrel import."
+			]
+		},
+		{
+			"destination": "provenance/licenses/ui-LICENSE",
+			"source": "packages/ui/LICENSE",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "f817886ee6bb65ed3098a7987b1e9781653d15c71f85589ce0d2af663c66d373",
+			"vendored_sha256": "f817886ee6bb65ed3098a7987b1e9781653d15c71f85589ce0d2af663c66d373",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "provenance/licenses/ui-COPYING.md",
+			"source": "packages/ui/COPYING.md",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "b1440f7a49a33ef775b212710e411cd985b806f24607c86faf53db3cf1cdb7ea",
+			"vendored_sha256": "b1440f7a49a33ef775b212710e411cd985b806f24607c86faf53db3cf1cdb7ea",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "provenance/licenses/assets-LICENSE",
+			"source": "packages/assets/LICENSE",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "f817886ee6bb65ed3098a7987b1e9781653d15c71f85589ce0d2af663c66d373",
+			"vendored_sha256": "f817886ee6bb65ed3098a7987b1e9781653d15c71f85589ce0d2af663c66d373",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "provenance/licenses/assets-COPYING.md",
+			"source": "packages/assets/COPYING.md",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "fda57721a49db88911bc5204c2b07821976b7300ecc55fb5bf2d9818e97151f2",
+			"vendored_sha256": "fda57721a49db88911bc5204c2b07821976b7300ecc55fb5bf2d9818e97151f2",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "provenance/licenses/app-frontend-LICENSE",
+			"source": "apps/app-frontend/LICENSE",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+			"vendored_sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "provenance/licenses/app-frontend-COPYING.md",
+			"source": "apps/app-frontend/COPYING.md",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "29817eff78221a191ffc8deaefd277a2b0ecb30f207f47511b8099b7d0966ecf",
+			"vendored_sha256": "29817eff78221a191ffc8deaefd277a2b0ecb30f207f47511b8099b7d0966ecf",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "provenance/licenses/upstream-COPYING.md",
+			"source": "COPYING.md",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "973d2b9a4038f48389e1b310ea31675003f01b67f5f771184573f23c3c0a643b",
+			"vendored_sha256": "973d2b9a4038f48389e1b310ea31675003f01b67f5f771184573f23c3c0a643b",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "provenance/licenses/lucide-ISC-MIT-LICENSE",
+			"source": "node_modules/.pnpm/lucide-static@0.562.0/node_modules/lucide-static/LICENSE",
+			"source_head": null,
+			"source_sha256": "3c57143f22dac950efebf84002e360bba5458c7b90fe583b0667aaaef1a7256e",
+			"vendored_sha256": "3c57143f22dac950efebf84002e360bba5458c7b90fe583b0667aaaef1a7256e",
+			"license": "ISC/MIT",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "provenance/integration.md",
+			"source": null,
+			"source_head": null,
+			"source_sha256": null,
+			"vendored_sha256": "53125642db321f0ae345cda360e708e7ee72d5c4c3f34cec9e861eb597d2b427",
+			"license": "Project documentation",
+			"modifications": [
+				"New extraction/integration documentation, 2026-11-14; no claim of executed application verification."
+			]
+		},
+		{
+			"destination": "../../../docs/component-provenance.md",
+			"source": null,
+			"source_head": null,
+			"source_sha256": null,
+			"vendored_sha256": "d5839b03e40a3f142c1810d98b44a8f9301068b173a8e843e8594344609d41be",
+			"license": "Project documentation",
+			"modifications": [
+				"New extraction/integration documentation, 2026-11-14; no claim of executed application verification."
+			]
+		}
+	]
+}

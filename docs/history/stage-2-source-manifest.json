@@ -1,0 +1,130 @@
+{
+  "date": "2026-11-15",
+  "verification": "只读来源摘要；未编译或测试",
+  "files": [
+    {
+      "path": "crates/vault-core/Cargo.toml",
+      "sha256": "05be3e57bd1f22a684c44bd6161b813d20dbd672ae8b0656ba3adf0310fbcf76"
+    },
+    {
+      "path": "crates/vault-core/src/api.rs",
+      "sha256": "a6c0490b750d851be7c5c9956832c6abaaea7a35fafd13f2780e7ff0905f8b3b"
+    },
+    {
+      "path": "crates/vault-core/src/archive.rs",
+      "sha256": "8a2e6c13fcdc0db0a001c53dee113084d2ccac17edb34d22a9bc2d5a58a259e8"
+    },
+    {
+      "path": "crates/vault-core/src/capture/mod.rs",
+      "sha256": "38fbef5589614a2e70b5a5508fea3a2dafd4b592367c967b86fd2258a3c59d15"
+    },
+    {
+      "path": "crates/vault-core/src/capture/probe/etw.rs",
+      "sha256": "2b7ec413cb05a0e6ef09561dcf4616e7e3dfdc3b69ffee4ef6caa50dc3348b43"
+    },
+    {
+      "path": "crates/vault-core/src/capture/probe/filter.rs",
+      "sha256": "86823ccc53dc3fe67ded7d2d1c41206ffaa61e07cbf41d6f42294c8b6747d060"
+    },
+    {
+      "path": "crates/vault-core/src/capture/probe/mod.rs",
+      "sha256": "16579ca459c127bf86c1d5d1f9b790799f901e9a8f504d3d1d8bfbb455043179"
+    },
+    {
+      "path": "crates/vault-core/src/capture/probe/model.rs",
+      "sha256": "40e9681636a37d28529df96d2ecf73bcab1393a9c7d1d0ea827542a1e0abdb24"
+    },
+    {
+      "path": "crates/vault-core/src/capture/probe/windows.rs",
+      "sha256": "5218d51fa042f43b0de0bc29ffb5a1d0da58643a65db2ad496436148bcbe109a"
+    },
+    {
+      "path": "crates/vault-core/src/engine.rs",
+      "sha256": "972a180d2d0fa96f7ec543670e6aa35ad29cf3dbdef88f6bc94c9e11bb7620b5"
+    },
+    {
+      "path": "crates/vault-core/src/lib.rs",
+      "sha256": "b562a24ae5056fb80ff2b54aad89fc3f5359fd9019632a2e064182acfa835ac8"
+    },
+    {
+      "path": "crates/vault-core/src/secure_fs.rs",
+      "sha256": "0ffd4b0017beceefa2c27a455045ad238c74ad0279ed6599dc5571f3327c13b6"
+    },
+    {
+      "path": "crates/vault-core/src/storage.rs",
+      "sha256": "57206683f25186b14b3719a82a63b20f74fc9c230ee43ff806e139903ad5f9a9"
+    },
+    {
+      "path": "crates/vault-core/src/unavailable.rs",
+      "sha256": "f179810274b200e800be7501c4f4bbc16bf0a0b579e69bddc8db313d856ceaf0"
+    },
+    {
+      "path": "src-tauri/src/commands.rs",
+      "sha256": "2159990e4e52289ba7be183e46ef58b6bebb7999817bb5d1664b57825bfa3d24"
+    },
+    {
+      "path": "src-tauri/src/fs_jobs.rs",
+      "sha256": "44715392fb9a193a3f9da2558b41d93ccce2b95bd17f6034ed3e585bbc51403c"
+    },
+    {
+      "path": "src-tauri/src/lib.rs",
+      "sha256": "7da13c1dc2708a39ad21e71cf7684bb42c577dd55a33416440e134b8a08c7955"
+    },
+    {
+      "path": "src-tauri/src/locator.rs",
+      "sha256": "3c666d6dcdd17755b83e783aff118ec39e1a8a4c65e136d2226bc6e4b04ff4a8"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "cc6c0cfa8a71e547fa3a60f6e34a69f7a9a264d15bc8f40f742cb285c9dc1332"
+    },
+    {
+      "path": "src-tauri/src/path_guard.rs",
+      "sha256": "4190a581ea243b2861bbfb9c022316f9dc65f6f1cb0108eb9f932e28282c1d8a"
+    },
+    {
+      "path": "src-tauri/src/permissions.rs",
+      "sha256": "f9d4ef3d57ad65468c127b95b1053f5b301f8243fd190be442d4fd5a3ce19012"
+    },
+    {
+      "path": "src-tauri/src/services.rs",
+      "sha256": "624bc47a25139620ccb218004440d836dc83d1461c719419e92867254fe3535e"
+    },
+    {
+      "path": "src-tauri/src/tray.rs",
+      "sha256": "1fc651d3ce2e1b3a5cc81d789772c8d44323bc0c6fa06562a1a67390487d7ca5"
+    },
+    {
+      "path": "src-tauri/src/vault_commands.rs",
+      "sha256": "2b2cd3c2389b5ba26d2240ba83392955cfcd24378029f711b276b3958abfd67f"
+    },
+    {
+      "path": "src/platform/index.ts",
+      "sha256": "1e3abcc92097e4875024e19160bc17f473ea3c2003447933907b26e84b769ea4"
+    },
+    {
+      "path": "src/platform/native.ts",
+      "sha256": "ec800824d4bf7858eea50cfef45c96f3ca3768a984ce490907e9c5e2a1c606fb"
+    },
+    {
+      "path": "src/platform/preview.ts",
+      "sha256": "5970f12710ea7a43bff66c2b247142a942a606f71aca175a18a5c45c99f51f91"
+    },
+    {
+      "path": "src/platform/types.ts",
+      "sha256": "9ac304f2e3928b3d0242a0c65c74adeb74990fdd6295675e6166d81cc4e7cddd"
+    },
+    {
+      "path": "src/platform/vault-types.ts",
+      "sha256": "d8ce18064ee95833bdf6c4a4c689cd50d5e4e30652d2d2d3a86939e566bddc8a"
+    },
+    {
+      "path": "src/stores/shell.ts",
+      "sha256": "d9e5eab787510ebda3a2b5eafa723d04c76f3d3dc0c1c783074225b8677e54e5"
+    },
+    {
+      "path": "src/stores/vault.ts",
+      "sha256": "498958edb6127ec7e9118ae1b2af81a85628cfe27539b12d31fc42ee653b1b23"
+    }
+  ]
+}

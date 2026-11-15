@@ -8,6 +8,8 @@
 /src-tauri/target/
 /src-tauri/gen/
 /data/
-/.claude/
+/celesvault-location.json
+/.claude/*
+!/.claude/launch.json
 /.tmp-verify/
 *.local

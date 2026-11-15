@@ -1,0 +1,24 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"module": "ESNext",
+		"moduleResolution": "Bundler",
+		"strict": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"allowImportingTsExtensions": true,
+		"resolveJsonModule": true,
+		"isolatedModules": true,
+		"esModuleInterop": true,
+		"types": ["vite/client", "vite-svg-loader"],
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["src/*"],
+			"@modrinth/ui": ["src/vendor/celestial/ui/index.ts"],
+			"@modrinth/assets": ["src/vendor/celestial/assets/index.ts"],
+			"#ui/*": ["src/vendor/celestial/ui/*"]
+		}
+	},
+	"include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts", "tailwind.config.ts"]
+}

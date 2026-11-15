@@ -1,0 +1,99 @@
+{
+  "source": "用户提供的 CelesVault.svg",
+  "source_sha256": "b303fa962659eb251633ffe0c86c0fa8c9db3545b6b8f833aa1b48024d8450b3",
+  "original_viewbox": [
+    0.0,
+    0.0,
+    1158.0,
+    1267.0
+  ],
+  "square_canvas": 1088,
+  "renderer": "Chromium headless, 2x raster",
+  "operations": "保留原稿；应用派生图移除Figma画板背景，以原1024方形圆角主体居中加32单位透明安全边距，保留三维图层与纹理。PNG RGBA，ICO 多尺寸。",
+  "files": [
+    {
+      "path": "assets/branding/CelesVault.original.svg",
+      "sha256": "b303fa962659eb251633ffe0c86c0fa8c9db3545b6b8f833aa1b48024d8450b3"
+    },
+    {
+      "path": "assets/branding/CelesVault.svg",
+      "sha256": "b533387dddbce4f3d7362ea1614877e18f98cb64c86964ccf32730a1023e2b8f"
+    },
+    {
+      "path": "assets/branding/CelesVault-1024.png",
+      "sha256": "be157476200ff22300f3472b25e0988c12f2bed10f33ac862e85766330edc47e"
+    },
+    {
+      "path": "src-tauri/icons/1024x1024.png",
+      "sha256": "be157476200ff22300f3472b25e0988c12f2bed10f33ac862e85766330edc47e"
+    },
+    {
+      "path": "src-tauri/icons/128x128.png",
+      "sha256": "79ee96064d2e068e98dbd647c16ab75811cdd62bfc562588600f12666e0bc338"
+    },
+    {
+      "path": "src-tauri/icons/128x128@2x.png",
+      "sha256": "9e94eff64e2c750f421bb64707039afde2602375494e171b77b845e96ea48e6e"
+    },
+    {
+      "path": "src-tauri/icons/16x16.png",
+      "sha256": "29317eeba8675f168ad43609d98be223504ff8567577e7641a7116adf3d9f770"
+    },
+    {
+      "path": "src-tauri/icons/24x24.png",
+      "sha256": "0d014b362211474d677e53a73c55700c9609163537c0b7fab6118d737524fbbc"
+    },
+    {
+      "path": "src-tauri/icons/256x256.png",
+      "sha256": "9e94eff64e2c750f421bb64707039afde2602375494e171b77b845e96ea48e6e"
+    },
+    {
+      "path": "src-tauri/icons/32x32.png",
+      "sha256": "be4fd51ed5dd2dc42b9a958cb43f7cb08ae60d8ff4592c16a4161e891e2de93f"
+    },
+    {
+      "path": "src-tauri/icons/48x48.png",
+      "sha256": "a198d6caa843886eaf2c70a932595ab3a6cff92793d47b736697fb992b4cdcb5"
+    },
+    {
+      "path": "src-tauri/icons/512x512.png",
+      "sha256": "4ee09ba54d4bb4f65365707e083c123ab884449512266d1b8e0c195953a3dedc"
+    },
+    {
+      "path": "src-tauri/icons/64x64.png",
+      "sha256": "faf928ad858219a86483bab5fe0bd0e49091e6c63280ec648104065e99a2fffb"
+    },
+    {
+      "path": "src-tauri/icons/icon.ico",
+      "sha256": "03a4cc2dda4a80a37dc6efd2aa8c5565ee245c75e330d98b3e39b73d8d3eb370"
+    },
+    {
+      "path": "src-tauri/icons/tray.png",
+      "sha256": "be4fd51ed5dd2dc42b9a958cb43f7cb08ae60d8ff4592c16a4161e891e2de93f"
+    },
+    {
+      "path": "public/favicon.ico",
+      "sha256": "03a4cc2dda4a80a37dc6efd2aa8c5565ee245c75e330d98b3e39b73d8d3eb370"
+    },
+    {
+      "path": "public/favicon-32.png",
+      "sha256": "be4fd51ed5dd2dc42b9a958cb43f7cb08ae60d8ff4592c16a4161e891e2de93f"
+    },
+    {
+      "path": "public/icon-192.png",
+      "sha256": "baec4637f491d53f3b49b2e622e9ad9b918fe2786ccd351eac99f9d22a0aa974"
+    },
+    {
+      "path": "public/icon-512.png",
+      "sha256": "4ee09ba54d4bb4f65365707e083c123ab884449512266d1b8e0c195953a3dedc"
+    },
+    {
+      "path": "src-tauri/icons/tray-paused.png",
+      "sha256": "3899ba0e2a14c3497e49779252a8af0cb21f5ebc22efbcd5b0d0935fc1a02f68"
+    },
+    {
+      "path": "src-tauri/icons/tray-error.png",
+      "sha256": "2eb7820f71973030da7a26f44461ea660a5168fb81f01f408e954ca4cbd84a4c"
+    }
+  ]
+}

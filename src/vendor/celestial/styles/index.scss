@@ -1,0 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import './tailwind-utilities';
+@import './launcher-before';
+@import './variables';
+@import './normalize';
+@import './classes';
+@import './defaults';
+@import './accessibility';
+@import './launcher-after';

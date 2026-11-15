@@ -1,0 +1,9 @@
+{
+	"version": "0.0.1",
+	"configurations": [{
+		"name": "celesvault-web",
+		"runtimeExecutable": "pnpm",
+		"runtimeArgs": ["run", "web:dev"],
+		"port": 8006
+	}]
+}
