@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { favoriteLocation, matchingFavorite, type FolderPinSource } from '@/platform/fixed-folders'
 import type { PlatformClient } from '@/platform'
 import { emptyConfig, localDate, type AppSettings, type ArchiveDetail, type ArchiveItem, type ConfigBundle, type ConflictPolicy, type CopyJob, type CopyPlan, type CourseView, type DirectoryView, type DriveInfo, type EngineStatus, type ExportRequest } from '@/platform/vault-types'
 
@@ -26,6 +27,34 @@ export const useVaultStore = defineStore('vault', () => {
 	const detailOpen = ref(false)
 	const archiveRevision = ref(0)
 	function archivesChanged() { archiveRevision.value++ }
+	const folderDrag = ref<FolderPinSource | null>(null)
+	let favoriteQueue = Promise.resolve()
+	function pinnedFolder(path: string, volumeId: string) { return matchingFavorite(config.value.favorites, path, volumeId, drives.value) }
+	async function pinFolder(platform: PlatformClient, source: FolderPinSource) {
+		const snapshot = { ...source }
+		const dataRoot = status.value?.dataRoot
+		const operation = favoriteQueue.catch(() => {}).then(async () => {
+			if (platform.mode !== 'native') throw new Error('浏览器预览不能持久固定文件夹')
+			const directory = await platform.files.browse(snapshot.path, config.value.app.showHidden)
+			if (directory.identity !== snapshot.identity || directory.volumeId !== snapshot.volumeId) throw new Error('文件夹或设备身份已变化，请刷新后重新固定')
+			const volumes = await platform.files.drives()
+			const location = favoriteLocation(directory.path, directory.volumeId, volumes)
+			const current = await platform.vault.config()
+			if (!dataRoot || status.value?.dataRoot !== dataRoot) throw new Error('持久目录已变化，请重新固定文件夹')
+			if (matchingFavorite(current.favorites, directory.path, directory.volumeId, volumes)) { config.value.favorites = current.favorites; return }
+			const position = Math.max(-1, ...current.favorites.map(folder => folder.position)) + 1
+			await platform.vault.favoriteSave({ id: crypto.randomUUID(), deviceId: location.deviceId, volumeId: location.volumeId, relativePath: location.relativePath,
+				alias: location.relativePath.split('/').at(-1) || location.drive.name, position })
+			config.value.favorites = (await platform.vault.config()).favorites
+		})
+		favoriteQueue = operation
+		return operation
+	}
+	async function unpinFolder(platform: PlatformClient, id: string) {
+		const operation = favoriteQueue.catch(() => {}).then(async () => { await platform.vault.favoriteRemove(id); config.value.favorites = (await platform.vault.config()).favorites })
+		favoriteQueue = operation
+		return operation
+	}
 	const dragIds = ref<string[]>([])
 	const pointerDrag = ref<{ x: number; y: number; count: number } | null>(null)
 	let refreshing = false
@@ -49,7 +78,7 @@ export const useVaultStore = defineStore('vault', () => {
 		try {
 			status.value = await platform.vault.status()
 			if (status.value.dataRoot !== rootLoaded || (!configReady.value && platform.mode === 'preview')) {
-				clearSelection(); homeTarget.value = null; libraryTarget.value = null; configReady.value = false
+				clearSelection(); folderDrag.value = null; homeTarget.value = null; libraryTarget.value = null; configReady.value = false
 				if (status.value.dataRoot || platform.mode === 'preview') await loadConfig(platform)
 				rootLoaded = status.value.dataRoot
 			}
@@ -136,6 +165,6 @@ export const useVaultStore = defineStore('vault', () => {
 		try { await requestExport(platform, ids, await platform.files.browse(path, config.value.app.showHidden)) } catch (failure) { error.value = String(failure) }
 	}
 	return { status, config, configReady, items, courses, drives, homeTarget, libraryTarget, libraryBrowsing, targetContext, target, jobs, selected, selectedItems, busy, error,
-		archiveRevision, archivesChanged, plan, policies, detail, detailOpen, dragIds, pointerDrag, available, selectedAvailable, select, selectMany, clearSelection, refresh, loadConfig, browse, persistApp, saveConfig,
+		archiveRevision, archivesChanged, plan, policies, detail, detailOpen, folderDrag, pinnedFolder, pinFolder, unpinFolder, dragIds, pointerDrag, available, selectedAvailable, select, selectMany, clearSelection, refresh, loadConfig, browse, persistApp, saveConfig,
 		requestExport, commitPlan, showDetail, openArchive, beginDrag, endDrag, dropAt }
 })

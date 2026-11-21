@@ -28,9 +28,12 @@ function jump(id:string,animate=true){
 	const card=root&&Array.from(root.querySelectorAll<HTMLElement>('[data-course-id]')).find(node=>node.dataset.courseId===id)
 	if(!root||!card)return
 	centeredId=id
+	const cards=Array.from(root.querySelectorAll<HTMLElement>('[data-course-id]'))
+	const first=card===cards[0];const last=card===cards.at(-1)
 	const box=root.getBoundingClientRect();const item=card.getBoundingClientRect()
+	const destination=first?0:last?(vertical.value?root.scrollWidth-root.clientWidth:root.scrollHeight-root.clientHeight):vertical.value?root.scrollLeft+item.left-box.left+(item.width-root.clientWidth)/2:root.scrollTop+item.top-box.top+(item.height-root.clientHeight)/2
 	const behavior=animate&&!matchMedia('(prefers-reduced-motion: reduce)').matches?'smooth':'instant'
-	root.scrollTo(vertical.value?{left:root.scrollLeft+item.left-box.left+(item.width-root.clientWidth)/2,behavior}:{top:root.scrollTop+item.top-box.top+(item.height-root.clientHeight)/2,behavior})
+	root.scrollTo(vertical.value?{left:destination,behavior}:{top:destination,behavior})
 }
 function measure(){
 	const root=scroller.value;if(!root||!root.clientHeight||!root.clientWidth)return
@@ -44,7 +47,6 @@ function measure(){
 		const rows=Math.max(1,Math.floor((root.clientHeight-chrome)/(tileHeight+.75*rem)))
 		card.style.setProperty('--course-columns',String(Math.min(3,Math.max(1,Math.ceil(Number(card.dataset.fileCount??0)/rows)))))
 	}
-	jump(centeredId||currentId.value,false)
 }
 function wheel(event:WheelEvent){
 	if(!vertical.value||event.ctrlKey||Math.abs(event.deltaX)>=Math.abs(event.deltaY))return
@@ -55,13 +57,18 @@ function wheel(event:WheelEvent){
 }
 function rememberCenter(){
 	const root=scroller.value;if(!root)return
+	const position=vertical.value?root.scrollLeft:root.scrollTop
+	const maximum=vertical.value?root.scrollWidth-root.clientWidth:root.scrollHeight-root.clientHeight
+	if(position<=2){centeredId=orderedCourses.value[0]?.id??'';return}
+	if(position>=maximum-2){centeredId=orderedCourses.value.at(-1)?.id??'';return}
 	const bounds=root.getBoundingClientRect();const center=vertical.value?bounds.left+root.clientWidth/2:bounds.top+root.clientHeight/2
 	let distance=Infinity
 	for(const card of root.querySelectorAll<HTMLElement>('[data-course-id]')){const box=card.getBoundingClientRect();const delta=Math.abs((vertical.value?box.left+box.width/2:box.top+box.height/2)-center);if(delta<distance){distance=delta;centeredId=card.dataset.courseId??''}}
 }
-watch([currentId,()=>orderedCourses.value.map(course=>course.id).join('|')],async()=>{await nextTick();if(active){measure();jump(currentId.value)}})
+// Polling and clock changes never reposition a view the user is browsing.
+watch(()=>orderedCourses.value.map(course=>course.id).join('|'),async(value,previous)=>{await nextTick();if(active){measure();if(!previous&&value)jump(currentId.value,false)}})
 watch(vertical,async()=>{await nextTick();if(active){measure();jump(centeredId||currentId.value,false)}})
-watch(()=>[orderedCourses.value.map(course=>`${course.id}:${course.items.length}`).join('|'),vault.config.app.scalePercent],async()=>{await nextTick();if(active){measure();requestAnimationFrame(()=>{if(active)measure()})}})
+watch(()=>`${vault.config.app.scalePercent}|${orderedCourses.value.map(course=>`${course.id}:${course.items.length}`).join('|')}`,async()=>{await nextTick();if(active){measure();requestAnimationFrame(()=>{if(active)measure()})}})
 async function activate(){active=true;vault.targetContext='home';now.value=Date.now();if(tick)clearInterval(tick);tick=setInterval(()=>now.value=Date.now(),10000);await nextTick();if(!active)return;resize?.disconnect();resize=new ResizeObserver(measure);if(scroller.value)resize.observe(scroller.value);measure();jump(currentId.value,false)}
 function deactivate(){active=false;if(tick)clearInterval(tick);tick=undefined;resize?.disconnect()}
 onActivated(activate)

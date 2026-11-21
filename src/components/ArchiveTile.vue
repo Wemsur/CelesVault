@@ -51,7 +51,10 @@ function finishTouchScroll(center = false) {
 	touchScroller = null
 	const horizontal = root.classList.contains('horizontal')
 	let destination = horizontal ? root.scrollLeft : root.scrollTop
-	if (center && root.isConnected) {
+	const maximum = horizontal ? root.scrollWidth - root.clientWidth : root.scrollHeight - root.clientHeight
+	if (center && destination <= 2) destination = 0
+	else if (center && destination >= maximum - 2) destination = maximum
+	else if (center && root.isConnected) {
 		const bounds = root.getBoundingClientRect()
 		const centerPoint = horizontal ? bounds.left + root.clientWidth / 2 : bounds.top + root.clientHeight / 2
 		let nearestDistance = Infinity

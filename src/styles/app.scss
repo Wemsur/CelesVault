@@ -47,6 +47,8 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .vault-course-card { --course-tile-height: 11.5rem; margin: 0 !important; flex-shrink: 0; display: flex; flex-direction: column; gap: .75rem; min-width: 0; height: auto; max-height: calc(var(--course-viewport-height, 760px) - 1.5rem); scroll-snap-align: center; background: color-mix(in srgb, var(--course-color, var(--color-raised-bg)) 18%, var(--color-raised-bg) 82%) !important; }
 .vault-courses.horizontal .vault-course-card { flex: 0 0 auto; width: min(calc(var(--course-viewport-width, 640px) - 1.5rem), max(15rem, calc(var(--course-columns, 1) * 8rem + 2rem))); height: 100%; }
 .vault-courses.horizontal .vault-course-card.empty { width: min(15rem, calc(var(--course-viewport-width, 640px) - 1.5rem)); }
+.vault-courses > .vault-course-card:first-child { scroll-snap-align: start; }
+.vault-courses > .vault-course-card:last-child:not(:first-child) { scroll-snap-align: end; }
 .vault-course-card.future, .vault-course-card.empty { opacity: .58; }
 .vault-course-card.current { border-color: var(--course-color, var(--color-brand)); }
 .vault-course-files { overflow-y: auto; flex: 0 1 auto; max-height: calc(3 * var(--course-tile-height) + 1.5rem); grid-auto-rows: var(--course-tile-height); overscroll-behavior-y: auto; touch-action: pan-y; }
@@ -102,6 +104,11 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .compact .vault-file-name { text-align: left; }
 .vault-file-error { color: var(--color-red) !important; overflow-wrap: anywhere; }
 .vault-fixed-folders { height: 100%; overflow: auto; padding: .75rem; }
+.vault-fixed-folders.folder-drag-active { box-shadow: inset 0 0 0 2px var(--color-brand); background: var(--color-brand-highlight); }
+.vault-pin-drop-hint { color: var(--color-brand); padding: .75rem; font-size: .875rem; }
+.vault-draggable-folder { touch-action: none; user-select: none; -webkit-touch-callout: none; }
+.vault-folder-drag-ghost { max-width: 20rem; }
+.vault-fixed-offline { opacity: .5; cursor: not-allowed; }
 .vault-fixed-folders .vault-panel-title > svg { width: 1.125rem; height: 1.125rem; }
 .vault-fixed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .5rem; margin-top: .75rem; }
 .vault-browser { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--color-bg); }
