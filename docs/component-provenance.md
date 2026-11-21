@@ -67,6 +67,10 @@
 
 动态背景单独位于 `src/vendor/margin-background`，来源和必要许可见其provenance.json、LICENSE与LICENSE-APACHE，不混入Celestial来源。业务外观页仅组合原控件，参数控制实际renderer，不复制扩展chrome.storage/intro/账号/字体。
 
+## 2026-11-21：顶栏/侧栏交界圆角遮罩
+
+宿主 `src/styles/appearance.scss` 适配本地Celestial `apps/app-frontend/src/assets/stylesheets/global.scss:240–277` 的透明grid、恢复子区域交互和主内容 `box-shadow: 0 0 0 250px` 逆向外围遮罩。阴影沿已有主区左上圆角填补外围，替换之前顶栏/侧栏独立矩形背景，未改vendor组件。深色外围65%/主区48%；浅色依据 `packages/assets/styles/variables.scss:913–921` 的customlight覆盖使用55%/38%。来源工程只读，未运行预览或构建验证。
+
 ## 许可与版权
 
 原 `packages/ui/COPYING.md`、`packages/assets/COPYING.md`、`apps/app-frontend/COPYING.md` 指定源码为 **GPL-3.0-only**，对应完整 LICENSE 和原根 COPYING 均已存入 vendor 的 `provenance/licenses/`。原 Rinth, Inc. 版权/品牌限制文字没有删改。
