@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+import { acceptHMRUpdate, defineStore, getActivePinia } from 'pinia'
 import { computed, ref } from 'vue'
 import { favoriteLocation, matchingFavorite, type FolderPinSource } from '@/platform/fixed-folders'
 import type { PlatformClient } from '@/platform'
@@ -168,3 +168,16 @@ export const useVaultStore = defineStore('vault', () => {
 		archiveRevision, archivesChanged, plan, policies, detail, detailOpen, folderDrag, pinnedFolder, pinFolder, unpinFolder, dragIds, pointerDrag, available, selectedAvailable, select, selectMany, clearSelection, refresh, loadConfig, browse, persistApp, saveConfig,
 		requestExport, commitPlan, showDetail, openArchive, beginDrag, endDrag, dropAt }
 })
+
+if (import.meta.hot) {
+	import.meta.hot.accept(acceptHMRUpdate(useVaultStore, import.meta.hot))
+	// The previous module had no HMR handler: already-open development windows
+	// may retain a pre-folder-pinning store even when their components update.
+	const pinia = getActivePinia()
+	if (pinia) {
+		const existing = useVaultStore(pinia)
+		if (typeof existing.pinFolder !== 'function' || typeof existing.unpinFolder !== 'function' || typeof existing.pinnedFolder !== 'function') {
+			window.location.reload()
+		}
+	}
+}

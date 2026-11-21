@@ -1,5 +1,13 @@
 # CelesVault 验证与变更记录
 
+## 2026-11-21：固定时报pinFolder不是函数
+
+用户反馈 `TypeError: vault.pinFolder is not a function`。源码核对确认pinFolder/unpinFolder/pinnedFolder均已定义并从唯一vault store导出，调用名一致；未取得运行时堆栈/实例，因此旧开发窗口保留旧Pinia实例是当前推断，不称实机证实。
+
+vault store补接Pinia原acceptHMRUpdate，后续热更新将新增方法/状态接入现有实例并保留数据。开发模块加载时检查活动实例是否缺少三个固定方法；缺少时刷新前端页面重建store，不刷新正常实例，不在正式包添加自动刷新逻辑，不操作Native进程/ETW或资料。自动刷新会丢弃未保存的前端草稿，正式data不受影响。
+
+仅源码/本地Pinia实现与Git差异核对，未启动预览、构建、编译、check、测试、类型检查、lint或Native dev。修复尚未运行验收；如未自动恢复，用户正常重启开发窗口后复验固定/取消固定。按约定本地提交，不推送。
+
 ## 2026-11-21：课程到顶后延迟跳转与文件夹固定手势
 
 定位到HomePage每轮新数组触发测量并jump旧centeredId，且起点的中心记录/触屏松手会选中第三张附近卡片。现measure只更新尺寸，监听使用课次/数量标量签名，不跟随轮询或时钟重定位；首课start、末课end、中间center吸附，jump/记录/触屏松手明确保留起止边界。
