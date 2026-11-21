@@ -1,5 +1,13 @@
 # CelesVault 验证与变更记录
 
+## 2026-11-21：固定夹卷代际GUID尾反斜线
+
+用户固定文件夹时反馈“卷代际 GUID 段不能带尾斜线”。源码定位：DirectoryGuard::volume_id使用devices::normalize_volume_identifier生成带单个尾反斜线的Windows卷根，config::favorite_volume_id却禁止任何尾斜线，属于生产与消费契约不一致。
+
+本次仅修正固定夹配置校验：接受无尾斜线或单个尾反斜线的完整GUID段，仍验证其余四段并原样保存完整volumeId；拒绝重复斜线、正斜线、GUID后子路径和非法代际字段。未改设备模块输出、本地设备ID或复制恢复意图的精确比较，不把完整代际截成裸GUID，不操作用户资料或已有意图。新增带尾反斜线的配置往返及非法结构回归源码，未执行。
+
+未运行构建、编译、cargo check、测试、类型检查、lint、Native dev或前端预览。仅源码与Git差异核对；本次是Rust校验修复，用户需正常重启新版完整dev使其生效，再复验固定、取消固定和重启保留。本地提交不代表Native验收通过，不推送。
+
 ## 2026-11-21：固定时报pinFolder不是函数
 
 用户反馈 `TypeError: vault.pinFolder is not a function`。源码核对确认pinFolder/unpinFolder/pinnedFolder均已定义并从唯一vault store导出，调用名一致；未取得运行时堆栈/实例，因此旧开发窗口保留旧Pinia实例是当前推断，不称实机证实。

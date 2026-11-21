@@ -72,9 +72,13 @@ fn favorite_volume_id(value: &str) -> Result<String, String> {
     if parts.len()!=5 || parts[0]!="win-volume-v1" {
         return Err("固定夹卷代际须为 win-volume-v1|GUID|serial8hex|filesystem|rootIndex16hex:rootCreated16hex".into());
     }
-    // GUID 段必须为无尾斜线的完整前缀；只验证，不能截短或改写整个 generation 串。
-    if parts[1].ends_with(['\\','/']) {return Err("卷代际 GUID 段不能带尾斜线".into());}
-    volume_id(parts[1])?;
+    // Windows 设备层返回带单个尾反斜线的卷根；历史配置也允许无尾斜线。
+    // 只验证这两种表示，完整代际串原样保留，避免改变设备/恢复意图身份。
+    let guid = parts[1].strip_suffix('\\').unwrap_or(parts[1]);
+    if guid.ends_with(['\\','/']) || parts[1].ends_with('/') {
+        return Err("卷代际 GUID 段仅允许无尾斜线或单个尾反斜线".into());
+    }
+    volume_id(guid)?;
     let hex=|part:&str,width:usize| part.len()==width && part.bytes().all(|b|b.is_ascii_hexdigit());
     if !hex(parts[2],8) {return Err("卷代际 serial 必须为 8 位十六进制".into());}
     let filesystem=parts[3];
@@ -337,6 +341,18 @@ mod tests {
         assert_ne!(legacy,full); // 旧记录不会被补猜为当前 generation。
     }
     #[test]
+    fn windows_volume_root_separator_is_preserved_in_favorites() {
+        let full=generation_volume("DEADBEEF","exFAT","0123456789ABCDEF","01D9ABCD01234567")
+            .replace(FAVORITE_GUID,&format!("{FAVORITE_GUID}\\"));
+        let bundle=ConfigBundle {favorites:vec![generation_folder(full.clone())],..ConfigBundle::default()};
+        let validated=validate_config(bundle).unwrap();
+        assert_eq!(validated.favorites[0].volume_id,full);
+        let imported=parse_config(&serde_json::to_string(&validated).unwrap()).unwrap();
+        assert_eq!(imported.favorites[0].volume_id,full);
+        assert_eq!(imported.favorites[0].device_id,"usb:serial");
+        assert!(full.ends_with("|DEADBEEF|exFAT|0123456789ABCDEF:01D9ABCD01234567"));
+    }
+    #[test]
     fn favorite_generation_rejects_bad_parts_and_unknown_versions() {
         let index="0123456789abcdef";let created="01d9abcd01234567";
         let valid=generation_volume("12345678","NTFS",index,created);
@@ -344,7 +360,9 @@ mod tests {
             valid.replacen("win-volume-v1|","win-volume-v2|",1),
             valid.replace(FAVORITE_GUID,"D:"),
             valid.replacen("12345678-","z2345678-",1),
-            valid.replace(FAVORITE_GUID,&format!("{FAVORITE_GUID}\\")),
+            valid.replace(FAVORITE_GUID,&format!("{FAVORITE_GUID}\\\\")),
+            valid.replace(FAVORITE_GUID,&format!("{FAVORITE_GUID}/")),
+            valid.replace(FAVORITE_GUID,&format!("{FAVORITE_GUID}\\child")),
             generation_volume("1234567","NTFS",index,created),
             generation_volume("123456789","NTFS",index,created),
             generation_volume("1234567z","NTFS",index,created),

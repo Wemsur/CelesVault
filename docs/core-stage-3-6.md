@@ -94,7 +94,7 @@ pub fn shutdown(&self);
 - 默认 Timetable/favorites **为空**，不建立示例课程或资料。
 - 科目/时间段/固定夹 id 为 1–80 个 ASCII 字母、数字、短横线或下划线。科目名、时间段标签、固定夹别名最多 128 字。
 - favorites 最多 512 项，position 为 0–4095；相同设备/卷/相对路径不得重复。相对根用空字符串，不接受绝对路径、`..`、ADS、保留组件或歧义路径。
-- 新固定夹 volumeId 严格采用设备模块完整代际串 `win-volume-v1|\\?\Volume{GUID}|{serial8hex}|{filesystem}|{rootIndex16hex}:{rootCreated16hex}`，五段完整验证后**原样保留**，不截 GUID 或丢弃格式化代际：serial 为 8 位 hex，rootIndex/rootCreated 各 16 位 hex，filesystem 为 1–32 个 ASCII 字母/数字/短横线/下划线，GUID 段无尾斜线。不同 serial/FS/rootIndex/rootCreated 的代际不会被合并成同一卷记录。
+- 新固定夹 volumeId 严格采用设备模块完整代际串 `win-volume-v1|\\?\Volume{GUID}|{serial8hex}|{filesystem}|{rootIndex16hex}:{rootCreated16hex}`，五段完整验证后**原样保留**，不截 GUID 或丢弃格式化代际：serial 为 8 位 hex，rootIndex/rootCreated 各 16 位 hex，filesystem 为 1–32 个 ASCII 字母/数字/短横线/下划线，GUID 段接受无尾斜线的历史表示或设备层返回的单个尾反斜线卷根，两者都原样保留；拒绝正斜线、重复尾斜线和子路径。不按裸GUID合并身份，不同 serial/FS/rootIndex/rootCreated 的代际不会被合并成同一卷记录。
 - 旧裸 `\\?\Volume{GUID}` 仅可作为旧配置记录导入/保存，不补猜 serial、FS 或 root 信息，不自动升级或匹配新的 generation 身份。deviceId 必须非空且不含控制字符；宿主须按当前 DriveInfo 完整 deviceId/volumeId 核对后保存/定位，不能仅按 GUID 自动认领另一代设备。
 - root/busy_volumes 的 GUID 规范化仍使用独立 `config::volume_id`，输出 canonical `\\?\Volume{小写UUID}` 前缀且无尾斜线；不能把该裸 GUID 结果用于固定夹代际匹配。ConfigBundle 仍为 version 1，缺字段导入明确错误，不为旧记录补猜新身份。
 - capture 保留 strict/loose、目录递归、USB/默认源、扩展名、进程名称/路径、安装目录、排除规则。每类最多 128 项；禁止 Explorer/dllhost/System 等通用主程序来源。路径只作严格本地盘符词法验证，设置中的离线源不要求保存时已挂载；捕获打开时再验证真实卷/文件身份。

@@ -137,7 +137,7 @@ devices::eject(device_id: String, blocked_volumes: Vec<String>) -> Result<(), St
 - 枚举本地固定/可移动盘及所有卷；卷使用 `IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS` 映射到真实物理磁盘，再用 SetupAPI 磁盘接口的 `IOCTL_STORAGE_GET_DEVICE_NUMBER` 做本次运行关联。
 - 存储设备描述符提供总线/型号/序列，设备级 StorageDeviceIdProperty 或带 UNIQUEID 且与序列匹配的 PnP 标识提供磁盘级区分。设备 ID 是这些可靠字段的 SHA-256；**不持久化磁盘号、盘符、端口地址或随机制造的“永久 USB ID”**。
 - 缺失、占位、格式异常、重复序列号/身份、缺少可靠标识降级为 identityReliable=false / deviceId=None。制造商标识不等于密码学硬件认证；不承诺能识别所有伪造或尚未同场出现的克隆设备。
-- 同一物理盘的多个分区共享 deviceId；volumeId 是 GUID + 卷序列 + 文件系统 + 根代际。多物理盘区段卷没有单物理 deviceId。格式化/卷换代不自动套用旧分区固定夹。
+- 同一物理盘的多个分区共享 deviceId；volumeId 是 GUID + 卷序列 + 文件系统 + 根代际。设备层GUID段使用Windows卷根的单个尾反斜线；固定夹配置接受这种表示及无尾斜线历史表示并原样保存完整代际，不截短或猜测合并。本次未改变设备输出或恢复意图精确比较。多物理盘区段卷没有单物理 deviceId。格式化/卷换代不自动套用旧分区固定夹。
 - 不可靠 USB 不能通过 None、盘符或其他盘的记录复用固定夹。本地盘允许固定夹：宿主可使用**独立本地卷命名空间**与精确 volumeId 绑定，不把它伪装成可靠 USB hardwareId；重新定位仍由用户确认。
 - isUsb 来自存储总线/PnP 关系，USB 的 DRIVE_FIXED 仍被识别。canEject 来自物理 USB PnP 节点的能力/状态，而不是 removable 标签猜测。系统卷、引导/服务分区、程序所在设备以及拓扑不完整的设备禁用弹出。
 
