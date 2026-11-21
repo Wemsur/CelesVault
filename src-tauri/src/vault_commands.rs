@@ -14,7 +14,7 @@ fn sources(engine: &VaultEngine, ids: Vec<String>) -> Result<(Vec<ExportSource>,
 	for id in ids {
 		if !seen.insert(id.clone()) { continue; }
 		let detail = engine.detail(id.clone())?;
-		if detail.deleted || detail.item.state != "available" { return Err("只能导出已成功保存且不在回收区的资料".into()); }
+		if detail.deleted || detail.item.state != "available" { return Err("只能导出已成功保存且不在回收站的资料".into()); }
 		let lease = engine.lease_archive(id.clone())?;
 		result.push(ExportSource { id, display_name: detail.item.display_name, path: lease.path.clone() }); leases.push(lease);
 	}
@@ -72,6 +72,13 @@ pub async fn restart_monitoring(app: tauri::AppHandle) -> Result<EngineStatus, S
 		*services.startup_error.lock().map_err(|_| "状态锁不可用")? = None;
 		Ok(status)
 	}).await
+}
+#[tauri::command]
+pub async fn dismiss_failed_capture(app: tauri::AppHandle, task_id: String) -> Result<(), String> {
+    blocking(move || {
+        let services=app.state::<Services>();let _mutation=services.mutation.lock().map_err(|_|"失败记录操作锁不可用")?;
+        require_live(&services)?;services.engine.dismiss_failed(task_id)
+    }).await
 }
 #[tauri::command]
 pub async fn vault_retry(services: State<'_, Services>, task_id: String) -> Result<(), String> { let engine=services.engine.clone(); blocking(move || engine.retry(task_id)).await }

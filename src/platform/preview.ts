@@ -17,7 +17,7 @@ export function createPreviewAdapter(): PlatformClient {
 		},
 		vault: {
 			async status() { return { dataRoot: null, monitorState: 'unconfigured', monitorDetail: '浏览器预览不监测、不读取本机文件。', pendingCount: 0, failedCount: 0, health: [], hasErrors: false } },
-			chooseRoot: unavailable, async today() { return [] }, pause: unavailable, restartMonitoring: unavailable, retry: unavailable, openArchive: unavailable,
+			chooseRoot: unavailable, async today() { return [] }, pause: unavailable, restartMonitoring: unavailable, retry: unavailable, dismissFailed: unavailable, openArchive: unavailable,
 			getCaptureSettings: unavailable, setCaptureSettings: unavailable, async config() { return emptyConfig() }, saveConfig: unavailable, saveApp: unavailable,
 			async onConfigChanged() { return () => {} },
 			async courses() { return [] }, changeCourse: unavailable, async library() { return { rows: [], total: 0 } }, detail: unavailable, editArchive: unavailable, moveUsage: unavailable, importConfig: unavailable, exportTimetable: unavailable,

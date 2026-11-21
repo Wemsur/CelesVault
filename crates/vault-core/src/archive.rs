@@ -62,7 +62,7 @@ pub(crate) fn verify_handle(file:&mut File,digest:&str,size:u64,stop:Option<&Ato
     secure_fs::snapshot(file)
 }
 fn require_available(entity:&Entity)->Result<(),String> {
-    if entity.state!="available" {return Err(format!("归档实体不可用（{}）；回收区资料须明确恢复，异常资料不静默复用",entity.state));}Ok(())
+    if entity.state!="available" {return Err(format!("归档实体不可用（{}）；回收站资料须明确恢复，异常资料不静默复用",entity.state));}Ok(())
 }
 fn metadata_check(file:&File,entity:&Entity)->Result<Snapshot,String> {
     secure_fs::ensure_single_link(file)?;let snapshot=secure_fs::snapshot(file)?;

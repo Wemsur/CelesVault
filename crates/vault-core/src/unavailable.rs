@@ -34,6 +34,7 @@ impl VaultEngine {
     pub fn busy_volumes(&self)->Result<Vec<String>,String> {Err(unavailable())}
     pub fn thumbnail(&self,_id:String)->Result<Option<String>,String> {Err(unavailable())}
     pub fn pause(&self,_paused:bool)->Result<EngineStatus,String> {Err(unavailable())}
+    pub fn dismiss_failed(&self,_task_id:String)->Result<(),String> {Err(unavailable())}
     pub fn retry(&self,_task_id:String)->Result<(),String> {Err(unavailable())}
     pub fn archived_path(&self,_id:String)->Result<PathBuf,String> {Err(unavailable())}
     pub fn lease_archive(&self,_id:String)->Result<ArchiveLease,String> {Err(unavailable())}

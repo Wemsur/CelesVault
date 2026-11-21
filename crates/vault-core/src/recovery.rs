@@ -109,7 +109,7 @@ fn action_inner(shared:&Shared,id:&str,kind:&str) -> Result<(),String> {
     } else {
         let (from,to)=match kind {
             "trash"=>{
-                if !matches!(entity.state.as_str(),"available"|"failed") {return Err("只能将现有归档副本移入应用回收区".into());}
+                if !matches!(entity.state.as_str(),"available"|"failed") {return Err("只能将现有归档副本移入应用回收站".into());}
                 relative_kind(&entity.rel,"archive/")?;
                 let uuid=Uuid::parse_str(&entity.id).map_err(|_|"资料 ID 不是自有 UUID，拒绝构造回收路径")?;
                 (entity.rel.clone(),Some(format!("recovery/{uuid}/{}.cvtrash",Uuid::new_v4())))
@@ -119,7 +119,7 @@ fn action_inner(shared:&Shared,id:&str,kind:&str) -> Result<(),String> {
                 (entity.trash_rel.clone().ok_or("回收资料缺少自有恢复路径")?,Some(entity.rel.clone()))
             }
             "purge"=>{
-                if entity.state!="deleted" {return Err("永久清理只允许对应用回收区资料明确执行，不能直接删除活动归档".into());}
+                if entity.state!="deleted" {return Err("永久清理只允许对应用回收站资料明确执行，不能直接删除活动归档".into());}
                 (entity.trash_rel.clone().ok_or("回收资料缺少自有恢复路径")?,None)
             }
             _=>return Err("未知回收动作".into()),

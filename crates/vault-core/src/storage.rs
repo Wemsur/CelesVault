@@ -363,11 +363,24 @@ impl Store {
         self.connection.execute("UPDATE tasks SET state=CASE WHEN digest IS NULL THEN 'pending' ELSE 'staged' END,deadline=?2,next_attempt=?3,error=NULL WHERE id=?1 AND state='failed'",params![id,now.saturating_add(RETRY_WINDOW_MS),now]).map_err(db_error)?;
         Ok(())
     }
+    /// 撤下失败记录，不删除来源、归档或无法验证的暂存文件。
+    pub fn dismiss_failed(&mut self,id:&str) -> Result<(),String> {
+        self.validate()?;
+        let task=self.task(id)?;
+        if task.state!="failed" {return Err("只能移除仍处于失败状态的记录；任务可能已经重试".into());}
+        if self.has_active_entity(&task.entity_id)? || self.intent(&task.entity_id)?.is_some() {return Err("该资料有活动任务或回收操作，不能移除失败记录".into());}
+        let tx=self.connection.transaction_with_behavior(TransactionBehavior::Immediate).map_err(db_error)?;
+        let changed=tx.execute("UPDATE tasks SET state='dismissed' WHERE state='failed' AND
+            (id=?1 OR (entity_id=?2 AND EXISTS(SELECT 1 FROM entities WHERE id=?2 AND state='failed')))",params![id,task.entity_id]).map_err(db_error)?;
+        if changed==0 {return Err("失败记录已经变化，未移除".into());}
+        self._root_guard.validate()?;tx.commit().map_err(db_error)
+    }
     fn items_for_date(&self,date:&str) -> Result<Vec<ArchiveItem>,String> {
         self.validate()?;
         let mut stmt=self.connection.prepare("SELECT e.id,e.display_name,e.extension,e.size,u.detected,e.state,
             CASE WHEN e.state='failed' THEN u.task_id ELSE NULL END,e.error,u.course_id,u.subject_name
             FROM usages u JOIN entities e ON e.id=u.entity_id WHERE u.date=?1 AND e.state IN ('available','failed')
+                AND (e.state='available' OR NOT EXISTS(SELECT 1 FROM tasks dismissed WHERE dismissed.id=u.task_id AND dismissed.state='dismissed'))
             UNION ALL SELECT t.id,t.display_name,t.extension,t.size,t.detected,CASE WHEN t.state='failed' THEN 'failed' ELSE 'pending' END,t.id,t.error,t.course_id,c.subject_name
             FROM tasks t JOIN courses c ON c.id=t.course_id WHERE t.date=?1 AND t.state IN ('pending','copying','staged','failed')
                 AND NOT EXISTS(SELECT 1 FROM usages u WHERE u.entity_id=t.entity_id AND u.course_id=t.course_id)
@@ -388,7 +401,7 @@ impl Store {
             "course"=>("u.course_id","u.date||' · '||c.label||' · '||u.subject_name"),
             "type"=>("e.extension","CASE WHEN e.extension='' THEN '无扩展名' ELSE upper(e.extension) END"), _=>unreachable!(),
         };
-        let mut filter=String::from("e.state IN ('available','failed')"); let mut values:Vec<Value>=Vec::new();
+        let mut filter=String::from("e.state IN ('available','failed') AND (e.state='available' OR NOT EXISTS(SELECT 1 FROM tasks dismissed WHERE dismissed.id=u.task_id AND dismissed.state='dismissed'))"); let mut values:Vec<Value>=Vec::new();
         if let Some(date)=query.date_from {filter.push_str(" AND u.date>=?");values.push(date.into());}
         if let Some(date)=query.date_to {filter.push_str(" AND u.date<=?");values.push(date.into());}
         if !query.subjects.is_empty() {
@@ -767,6 +780,45 @@ pub(crate) mod exclusion_tests {
         exclude(s,true);assert!(s.due().unwrap().is_none());assert!(s.require_attempt(&task).is_err());
         assert!(accept(s,2,c[1].end_unix_ms));let genuine=s.due().unwrap().unwrap();assert_ne!(genuine.id,task.id);
         exclude(s,false);assert_eq!(s.due().unwrap().unwrap().id,task.id);
+    }
+    #[test]
+    fn dismissing_failed_capture_hides_record_without_deleting_files_or_reactivating_task() {
+        let mut fixture=Fixture::new();let store=fixture.store();let courses=setup(store);
+        assert!(accept(store,1,courses[0].start_unix_ms));
+        let task=store.due().unwrap().unwrap();
+        assert!(store.dismiss_failed(&task.id).is_err());
+        store.fail(&task,"测试失败",true).unwrap();
+        let stage=secure_fs::relative(&store.root,&task.stage_rel).unwrap();
+        std::fs::write(&stage,b"unverified stage remains").unwrap();
+        store.dismiss_failed(&task.id).unwrap();
+        assert_eq!(store.task(&task.id).unwrap().state,"dismissed");
+        assert!(store.items_for_date(&courses[0].date).unwrap().is_empty());
+        assert_eq!(store.counts().unwrap(),(0,0));
+        assert!(store.retry(&task.id).is_err());
+        store.recover_copying().unwrap();assert!(store.due().unwrap().is_none());
+        assert!(!accept(store,1,courses[0].start_unix_ms));
+        assert_eq!(store.task(&task.id).unwrap().state,"dismissed");
+        assert_eq!(std::fs::read(&stage).unwrap(),b"unverified stage remains");
+        assert_eq!(scalar(store,"SELECT count(*) FROM aliases"),1);
+        assert_eq!(scalar(store,"SELECT count(*) FROM tasks"),1);
+    }
+    #[test]
+    fn dismissed_failed_archive_keeps_history_but_is_removed_from_today_and_library() {
+        let mut fixture=Fixture::new();let store=fixture.store();let courses=setup(store);
+        assert!(accept(store,1,courses[0].start_unix_ms));let task=store.due().unwrap().unwrap();
+        store.staged(&task,"digest",10).unwrap();
+        let entity=Entity {id:task.entity_id.clone(),rel:task.final_rel.clone(),digest:"digest".into(),size:10,state:"available".into(),display_name:"失败资料.docx".into(),extension:"docx".into(),archived:now_ms(),error:None,trash_rel:None,deleted_at:None,owned_identity:Some(identity(9))};
+        store.finish(&task,&entity,true).unwrap();
+        assert!(store.dismiss_failed(&task.id).is_err());
+        store.invalidate(&entity.id,"校验失败").unwrap();
+        assert_eq!(store.items_for_date(&courses[0].date).unwrap().len(),1);
+        store.dismiss_failed(&task.id).unwrap();
+        assert!(store.items_for_date(&courses[0].date).unwrap().is_empty());
+        assert_eq!(store.library(LibraryQuery::default()).unwrap().total,0);
+        assert_eq!(store.entity(&entity.id).unwrap().state,"failed");
+        assert_eq!(scalar(store,"SELECT count(*) FROM usages"),1);
+        assert_eq!(scalar(store,"SELECT count(*) FROM entities"),1);
+        assert!(store.trash_list().unwrap().is_empty());
     }
     #[test]
     fn same_day_retarget_cannot_allow_waiting_or_exclude_active_tasks() {

@@ -28,7 +28,7 @@ pub fn run() {
 			commands::toggle_maximize_window,
 			commands::hide_window,
 			vault_commands::vault_status, vault_commands::choose_data_root, vault_commands::vault_today,
-			vault_commands::vault_pause, vault_commands::restart_monitoring, vault_commands::vault_retry, vault_commands::capture_settings,
+			vault_commands::vault_pause, vault_commands::restart_monitoring, vault_commands::vault_retry, vault_commands::dismiss_failed_capture, vault_commands::capture_settings,
 			vault_commands::set_capture_settings, vault_commands::open_archive, vault_commands::list_drives,
 			vault_commands::browse_directory, vault_commands::export_archives, vault_commands::copy_jobs,
 			vault_commands::cancel_copy,

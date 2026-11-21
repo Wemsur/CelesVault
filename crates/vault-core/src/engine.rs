@@ -333,6 +333,10 @@ impl VaultEngine {
         {let mut inner=lock(&self.shared.inner)?;if inner.shutdown {return Err("引擎已关闭".into());}inner.paused=paused;inner.capture_resume_after=storage::now_ms();inner.capture_event_after=inner.capture_event_after.max(inner.capture_resume_after);}
         self.status()
     }
+    pub fn dismiss_failed(&self,task_id:String)->Result<(),String> {
+        let _lifecycle=lock(&self.lifecycle)?;let mut inner=lock(&self.shared.inner)?;ready(&inner)?;
+        inner.store.as_mut().ok_or("数据目录尚未配置")?.dismiss_failed(&task_id)
+    }
     pub fn retry(&self,task_id:String)->Result<(),String> {
         let _lifecycle=lock(&self.lifecycle)?;let inner=lock(&self.shared.inner)?;ready(&inner)?;
         inner.store.as_ref().ok_or("数据目录尚未配置")?.retry(&task_id)?;self.shared.wake.notify_all();Ok(())

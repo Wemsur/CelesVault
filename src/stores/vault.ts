@@ -24,6 +24,8 @@ export const useVaultStore = defineStore('vault', () => {
 	const policies = ref<Record<string, ConflictPolicy>>({})
 	const detail = ref<ArchiveDetail | null>(null)
 	const detailOpen = ref(false)
+	const archiveRevision = ref(0)
+	function archivesChanged() { archiveRevision.value++ }
 	const dragIds = ref<string[]>([])
 	const pointerDrag = ref<{ x: number; y: number; count: number } | null>(null)
 	let refreshing = false
@@ -134,6 +136,6 @@ export const useVaultStore = defineStore('vault', () => {
 		try { await requestExport(platform, ids, await platform.files.browse(path, config.value.app.showHidden)) } catch (failure) { error.value = String(failure) }
 	}
 	return { status, config, configReady, items, courses, drives, homeTarget, libraryTarget, libraryBrowsing, targetContext, target, jobs, selected, selectedItems, busy, error,
-		plan, policies, detail, detailOpen, dragIds, pointerDrag, available, selectedAvailable, select, selectMany, clearSelection, refresh, loadConfig, browse, persistApp, saveConfig,
+		archiveRevision, archivesChanged, plan, policies, detail, detailOpen, dragIds, pointerDrag, available, selectedAvailable, select, selectMany, clearSelection, refresh, loadConfig, browse, persistApp, saveConfig,
 		requestExport, commitPlan, showDetail, openArchive, beginDrag, endDrag, dropAt }
 })

@@ -16,6 +16,7 @@ export function createNativeAdapter(): PlatformClient {
 			status: () => invoke<EngineStatus>('vault_status'), chooseRoot: () => invoke<EngineStatus | null>('choose_data_root'),
 			today: () => invoke<ArchiveItem[]>('vault_today'), pause: paused => invoke<EngineStatus>('vault_pause', { paused }),
 			restartMonitoring: () => invoke<EngineStatus>('restart_monitoring'),
+			dismissFailed: taskId => invoke('dismiss_failed_capture', { taskId }),
 			retry: taskId => invoke('vault_retry', { taskId }), openArchive: id => invoke('open_archive', { id }),
 			getCaptureSettings: () => invoke<CaptureSettings>('capture_settings'), setCaptureSettings: settings => invoke('set_capture_settings', { settings }),
 			config: () => invoke<ConfigBundle>('vault_config'), saveConfig: config => invoke<ConfigBundle>('save_vault_config', { config }), saveApp: app => invoke<ConfigBundle>('save_app_settings', { settings: app }),

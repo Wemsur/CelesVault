@@ -29,6 +29,7 @@ function schedule() { if (timer) clearTimeout(timer); timer = setTimeout(() => {
 watch(() => library.query, schedule, { deep: true })
 watch(() => [library.query.name, library.query.regex, library.query.groupBy, library.query.sortBy, library.query.descending, library.query.subjects.join(','), library.query.extensions.join(','), library.query.dateFrom, library.query.dateTo], () => { library.query.offset = 0 })
 watch(() => vault.status?.dataRoot, schedule)
+watch(() => vault.archiveRevision, schedule)
 function toggle(values: string[], id: string, selected: boolean) { return selected ? [...new Set([...values, id])] : values.filter(value => value !== id) }
 function page(step: number) { library.query.offset = Math.max(0, library.query.offset + step * library.query.limit) }
 onMounted(() => { void library.load(platform) })

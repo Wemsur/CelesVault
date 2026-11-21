@@ -13,7 +13,7 @@ export interface PlatformClient {
 	app: { getRuntimeInfo(): Promise<RuntimeInfo> }
 	vault: {
 		status(): Promise<EngineStatus>; chooseRoot(): Promise<EngineStatus | null>; today(): Promise<ArchiveItem[]>
-		pause(paused: boolean): Promise<EngineStatus>; restartMonitoring(): Promise<EngineStatus>; retry(taskId: string): Promise<void>; openArchive(id: string): Promise<void>
+		pause(paused: boolean): Promise<EngineStatus>; restartMonitoring(): Promise<EngineStatus>; retry(taskId: string): Promise<void>; dismissFailed(taskId: string): Promise<void>; openArchive(id: string): Promise<void>
 		getCaptureSettings(): Promise<CaptureSettings>; setCaptureSettings(settings: CaptureSettings): Promise<void>
 		config(): Promise<ConfigBundle>; saveConfig(config: ConfigBundle): Promise<ConfigBundle>; saveApp(app: ConfigBundle['app']): Promise<ConfigBundle>
 		onConfigChanged(listener: () => void): Promise<Unlisten>

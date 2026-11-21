@@ -66,6 +66,7 @@ pub fn thumbnail(&self, id: String) -> Result<Option<String>, String>;
 
 pub fn pause(&self, paused: bool) -> Result<EngineStatus, String>;
 pub fn retry(&self, task_id: String) -> Result<(), String>;
+pub fn dismiss_failed(&self, task_id: String) -> Result<(), String>;
 pub fn archived_path(&self, id: String) -> Result<PathBuf, String>;
 pub fn lease_archive(&self, id: String) -> Result<ArchiveLease, String>;
 pub fn get_capture_settings(&self) -> Result<CaptureSettings, String>;
@@ -73,6 +74,8 @@ pub fn set_capture_settings(&self, settings: CaptureSettings) -> Result<(), Stri
 pub fn source_defaults(&self) -> Result<Vec<SourceRule>, String>;
 pub fn shutdown(&self);
 ```
+
+`dismiss_failed` 仅接受当前失败任务，无活动归档/回收意图时将失败任务设为dismissed并从今日/库列表撤下；同一失效实体的失败记录一起撤下。保留任务、别名、实体与使用历史，不执行任何来源/归档/暂存文件IO，不视为移入回收站。已撤下任务不会因普通重启或重复事件重新启用，也不能再从此卡片手动重试。该状态使用现有tasks.state，无表结构迁移。
 
 `import_config`、`export_timetable`、`move_usage` 为集成契约之外已同步给消费端的补充方法。导入方法只返回已验证草稿，不选择根、不落库；必须经过一次显式 `save_config`。
 
