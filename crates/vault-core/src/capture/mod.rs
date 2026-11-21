@@ -1,5 +1,5 @@
-use crate::{api::{CaptureSettings, SourceRule}, engine::{lock, Shared}, secure_fs, storage};
-use std::{path::{Path,PathBuf}, sync::{Arc,Mutex,RwLock,atomic::{AtomicBool,Ordering},mpsc}, thread, time::{Duration,Instant}};
+use crate::{api::{CaptureSettings, SourceRule}, engine::{lock, Shared}, secure_fs};
+use std::{path::{Path,PathBuf}, sync::{Arc,Mutex,RwLock,atomic::{AtomicBool,Ordering},mpsc}, time::{Duration,Instant}};
 use probe::{etw::{Collector,TraceSession}, filter::{self,Scope}, model::ProcessInfo, windows};
 pub mod probe;
 
@@ -7,36 +7,8 @@ fn forbidden_process(name: &str) -> bool {
     ["system","system.exe","explorer.exe","dllhost.exe","prevhost.exe","svchost.exe","searchindexer.exe"]
         .contains(&name.to_ascii_lowercase().as_str())
 }
-pub fn validate_settings(mut settings: CaptureSettings) -> Result<CaptureSettings,String> {
-    if !["strict","loose"].contains(&settings.mode.as_str()) { return Err("监测模式只能是 strict 或 loose".into()); }
-    for count in [settings.process_names.len(),settings.process_paths.len(),settings.wps_install_paths.len(),settings.sources.len(),settings.extensions.len(),settings.excluded_paths.len()] {
-        if count > 128 { return Err("每类监测规则最多 128 项".into()); }
-    }
-    for name in &mut settings.process_names {
-        *name = name.trim().to_ascii_lowercase();
-        if name.is_empty() || name.contains(['\\','/',':']) || !name.ends_with(".exe") || forbidden_process(name) {
-            return Err("主程序规则必须是明确的应用 exe 名；不能使用 Explorer/dllhost/System 等通用来源".into());
-        }
-    }
-    for ext in &mut settings.extensions {
-        *ext = ext.trim().trim_start_matches('.').to_ascii_lowercase();
-        if ext.is_empty() || ext.len()>16 || !ext.bytes().all(|b| b.is_ascii_alphanumeric()) {
-            return Err("扩展名必须是 1–16 个英文或数字".into());
-        }
-    }
-    for path in settings.process_paths.iter().chain(settings.wps_install_paths.iter()).chain(settings.excluded_paths.iter()).chain(settings.sources.iter().map(|s| &s.path)) {
-        secure_fs::lexical_path(path)?;
-    }
-    for path in &settings.process_paths {
-        let name = path.rsplit(['\\','/']).next().unwrap_or("");
-        if forbidden_process(name) || !name.to_ascii_lowercase().ends_with(".exe") { return Err("程序路径不能指向通用系统进程".into()); }
-    }
-    for path in &settings.wps_install_paths {
-        if filter::normalize(path).len() <= 3 { return Err("WPS 安装目录不能是整个盘根".into()); }
-    }
-    settings.process_names.sort(); settings.process_names.dedup();
-    settings.extensions.sort(); settings.extensions.dedup();
-    Ok(settings)
+pub fn validate_settings(settings: CaptureSettings) -> Result<CaptureSettings,String> {
+    crate::config::validate_capture(settings)
 }
 
 pub fn source_defaults() -> Vec<SourceRule> {
@@ -108,8 +80,29 @@ fn install_paths(settings: &CaptureSettings) -> Vec<String> {
     paths
 }
 
+fn fresh_event(observed:u64,actual:u64,observed_after:u64,actual_after:u64)->bool {
+    observed>observed_after && actual>actual_after
+}
+fn admission(inner:&crate::engine::Inner,settings:&CaptureSettings,event:&probe::model::FileEvent)->Result<bool,String> {
+    if inner.paused || inner.switching || inner.shutdown
+        || !fresh_event(event.observed_unix_ms,event.event_unix_ms,inner.capture_resume_after,inner.capture_event_after) {return Ok(false);}
+    let store=inner.store.as_ref().ok_or("数据目录未配置")?;
+    if &store.settings!=settings {return Ok(false);}
+    store.capture_allowed(event.event_unix_ms)
+}
+
+pub(crate) fn admitted_source<T>(shared:&Shared,settings:&CaptureSettings,event:&probe::model::FileEvent,stop:&AtomicBool,
+    open:impl FnOnce()->Result<T,String>)->Result<Option<T>,String> {
+    // 调课与首次打开串行，但不能在阻塞 I/O 期间持有 worker 所需的 inner 锁。
+    let _course=lock(&shared.course_admission)?;
+    let inner=lock(&shared.inner)?;
+    if stop.load(Ordering::Acquire) || !admission(&inner,settings,event)? {return Ok(None);}
+    drop(inner);
+    open().map(Some)
+}
+
 /// 原始事件队列严格有界；ETW 回调只解析/关联/try_send，不做摘要、复制或 DB。
-pub fn run(shared: Arc<Shared>, stop: Arc<AtomicBool>) {
+pub fn run(shared: Arc<Shared>, stop: Arc<AtomicBool>, started:mpsc::Sender<()>) -> Result<(),String> {
     let initial=(|| {
         let inner=lock(&shared.inner)?;
         let store=inner.store.as_ref().ok_or("尚未配置数据目录")?;
@@ -117,7 +110,7 @@ pub fn run(shared: Arc<Shared>, stop: Arc<AtomicBool>) {
         Ok::<_,String>((store.settings.clone(),store.root.clone(),store.display_root()?))
     })();
     let (settings,root,mut display_root)=match initial {
-        Ok(value)=>value,Err(error)=>{shared.capture_error(error);return;}
+        Ok(value)=>value,Err(error)=>{shared.capture_error(error);return Ok(());}
     };
     windows::STOP_REQUESTED.store(false,Ordering::Release);
     let mut settings=settings;
@@ -125,11 +118,13 @@ pub fn run(shared: Arc<Shared>, stop: Arc<AtomicBool>) {
     let active=Arc::new(RwLock::new(scope(&settings,&display_root,&windows::drives())));
     let (tx,rx)=mpsc::sync_channel(512);
     let collector=Arc::new(Mutex::new(Collector::new(active.clone(),tx)));
+    if stop.load(Ordering::Acquire) {return Ok(());}
     let mut trace=match TraceSession::start(collector.clone()) {
         Ok(trace)=>trace,
-        Err(error)=>{shared.capture_error(error);return;}
+        Err((error,uncertain))=>{shared.capture_error(error.clone());return if uncertain {Err(error)} else {Ok(())};}
     };
-    shared.capture_started();
+    if !stop.load(Ordering::Acquire) {shared.capture_started();let _=started.send(());}
+    drop(started);
     let mut refreshed=Instant::now();
     let mut unknown=0u64;
     let mut rejected_identity=0u64;
@@ -156,15 +151,26 @@ pub fn run(shared: Arc<Shared>, stop: Arc<AtomicBool>) {
             Ok(e)=>e,Err(mpsc::RecvTimeoutError::Timeout)=>continue,Err(_)=>break,
         };
         if ![64,67].contains(&event.opcode) { continue; }
-        if lock(&shared.inner).map(|i|i.paused || i.switching || event.observed_unix_ms<=i.capture_resume_after).unwrap_or(true) { continue; }
+        if lock(&shared.inner).map(|i|i.paused || i.switching || i.shutdown || !fresh_event(event.observed_unix_ms,event.event_unix_ms,i.capture_resume_after,i.capture_event_after)).unwrap_or(true) { continue; }
+        // 设置只经一次事务落库；候选处理前刷新规则，不能继续按已取消的旧规则收纳。
+        let current_settings=(|| {let inner=lock(&shared.inner)?;let store=inner.store.as_ref().ok_or("数据目录未配置")?;
+            store.validate()?;Ok::<_,String>((store.settings.clone(),store.display_root()?))})();
+        match current_settings {
+            Ok((current,path)) if current!=settings=>{
+                settings=current;display_root=path;
+                match active.write() {Ok(mut scope_guard)=>*scope_guard=scope(&settings,&display_root,&windows::drives()),Err(_)=>{shared.capture_error("监测范围锁已损坏".into());break;}}
+                installs=install_paths(&settings);
+            }
+            Ok(_)=>(),Err(error)=>{shared.capture_error(error);break;}
+        }
         let Some(process)=&event.process else {unknown=unknown.saturating_add(1);continue;};
         if process.executable_path.is_none() {unknown=unknown.saturating_add(1);continue;}
         if !process_allowed(process,&settings,&installs) {continue;}
         if !active.read().map(|s|source_allowed(&event.path,&settings,&s)).unwrap_or(false) {continue;}
-        let data_valid=(|| {lock(&shared.inner)?.store.as_ref().ok_or("数据目录未配置")?.validate()})();
-        if let Err(error)=data_valid {shared.capture_error(error);break;}
-        let opened=match secure_fs::local_path(&event.path).and_then(|p|secure_fs::Opened::source(&p,true)) {
-            Ok(file)=>file,Err(error)=>{rejected_identity=rejected_identity.saturating_add(1);shared.note_capture_error(error);continue;}
+        let opened=match admitted_source(&shared,&settings,&event,&stop,||
+            secure_fs::local_path(&event.path).and_then(|p|secure_fs::Opened::source(&p,true))) {
+            Ok(Some(file))=>file,Ok(None)=>continue,
+            Err(error)=>{rejected_identity=rejected_identity.saturating_add(1);shared.note_capture_error(error);continue;}
         };
         let candidate_guid=match secure_fs::guid_path(&opened.file) {
             Ok(path)=>path,Err(error)=>{rejected_identity=rejected_identity.saturating_add(1);shared.note_capture_error(error);continue;}
@@ -173,19 +179,31 @@ pub fn run(shared: Arc<Shared>, stop: Arc<AtomicBool>) {
         let snapshot=match secure_fs::snapshot(&opened.file) {
             Ok(info)=>info,Err(error)=>{rejected_identity=rejected_identity.saturating_add(1);shared.note_capture_error(error);continue;}
         };
+        let _candidate_source=match shared.activity.source(&snapshot.identity.volume_name) {
+            Ok(token)=>token,Err(error)=>{rejected_identity=rejected_identity.saturating_add(1);shared.note_capture_error(error);continue;}
+        };
         drop(opened);
-        // ETW 原始有效时间决定归属，不用 observed/copy 完成时刻；失效时间不猜。
-        if event.event_unix_ms==0 || storage::event_date(event.event_unix_ms).is_err() {
-            rejected_identity=rejected_identity.saturating_add(1);continue;
-        }
+        // 锁内重复检查最新资格，再由 Store::accept 复核后物化课次和写入。
         let result=(|| {
             let mut inner=lock(&shared.inner)?;
-            if inner.paused || inner.switching || event.observed_unix_ms<=inner.capture_resume_after {return Ok(false);}
-            inner.store.as_mut().ok_or("尚未配置数据目录")?.accept(event.path,snapshot.identity,snapshot.size,event.event_unix_ms)
+            if stop.load(Ordering::Acquire) || inner.paused || inner.switching || inner.shutdown
+                || !fresh_event(event.observed_unix_ms,event.event_unix_ms,inner.capture_resume_after,inner.capture_event_after) {return Ok(false);}
+            let store=inner.store.as_mut().ok_or("尚未配置数据目录")?;
+            if store.settings!=settings {return Ok(false);}
+            let accepted=store.accept(event.path,snapshot.identity,snapshot.size,event.event_unix_ms)?;
+            if accepted {inner.record_capture_activity(crate::api::CaptureActivityKind::Detected);}
+            Ok(accepted)
         })();
         match result {Ok(true)=>shared.wake.notify_all(),Ok(false)=>(),Err(error)=>shared.note_capture_error(error)}
     }
     let health=trace.stop(); // 只停止独立 GUID_NULL 会话，并回收 consumer 所有权。
     let counters=collector.lock().unwrap_or_else(|p|p.into_inner()).counters.clone();
+    let stopped=health.stop_code==0 && health.consumer_joined
+        && [0,windows_sys::Win32::Foundation::ERROR_CTX_CLOSE_PENDING].contains(&health.close_code)
+        && health.consumer_code.is_some();
+    let error=(!stopped).then(||format!("ETW 会话 {} 未确认正常停止：停止码 {}，关闭码 {}",trace.name,health.stop_code,health.close_code));
     shared.capture_health(counters,health,unknown,rejected_identity);
+    if let Some(error)=error {return Err(error);}
+    if !stop.load(Ordering::Acquire) {shared.capture_error("ETW 监测已停止".into());}
+    Ok(())
 }

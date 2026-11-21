@@ -1,12 +1,14 @@
+@use 'sass:meta';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import './tailwind-utilities';
-@import './launcher-before';
-@import './variables';
-@import './normalize';
-@import './classes';
-@import './defaults';
-@import './accessibility';
-@import './launcher-after';
+@include meta.load-css('./tailwind-utilities');
+@include meta.load-css('./launcher-before');
+@include meta.load-css('./variables');
+@include meta.load-css('./normalize');
+@include meta.load-css('./classes');
+@include meta.load-css('./defaults');
+@include meta.load-css('./accessibility');
+@include meta.load-css('./launcher-after');

@@ -1,3 +1,5 @@
+export { default as NotificationPanel } from './components/nav/NotificationPanel.vue'
+export * from './providers/web-notifications'
 export { default as NavButton } from './components/launcher/NavButton.vue'
 export { default as WindowControls } from './components/launcher/WindowControls.vue'
 export { default as Card } from './components/base/Card.vue'

@@ -1,7 +1,13 @@
 use serde::Serialize;
 
 mod api;
-pub use api::{ArchiveItem, CaptureSettings, EngineStatus, SourceRule};
+pub use api::*;
+mod config;
+mod library;
+mod timetable;
+pub use config::{parse_config, validate_app, validate_capture, validate_config, validate_favorites};
+pub use library::validate_library_query;
+pub use timetable::{classify_course, export_timetable, import_timetable, parse_date, time_minutes, validate_timetable};
 #[cfg(windows)]
 mod archive;
 #[cfg(windows)]
@@ -12,6 +18,14 @@ mod engine;
 mod secure_fs;
 #[cfg(windows)]
 mod storage;
+#[cfg(windows)]
+mod schema;
+#[cfg(windows)]
+mod activity;
+#[cfg(windows)]
+mod recovery;
+#[cfg(windows)]
+mod thumbnail;
 #[cfg(windows)]
 pub use engine::VaultEngine;
 #[cfg(windows)]

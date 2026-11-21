@@ -436,10 +436,10 @@
 			"source": "packages/assets/styles/defaults.scss",
 			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
 			"source_sha256": "4c9476086bf4dd9185684dfba07a3038af739143a22d3a5bd89c379735142400",
-			"vendored_sha256": "4c9476086bf4dd9185684dfba07a3038af739143a22d3a5bd89c379735142400",
+			"vendored_sha256": "0dc901e993a78a1a1cd964a18cca3d258efb68ac7d8ad73c746c62fc2c03bdbd",
 			"license": "GPL-3.0-only",
 			"modifications": [
-				"Byte-for-byte copy."
+				"Preserve original CSS rules; replace reset Sass @import with @use, 2026-11-15."
 			]
 		},
 		{
@@ -541,11 +541,11 @@
 			"source": null,
 			"source_head": null,
 			"source_sha256": null,
-			"vendored_sha256": "31a4d04d801e44b521a245a36ad169340f3d9be9607aefa3a6212171ad47abc4",
+			"vendored_sha256": "07337f7ba18fcbe9709a3f7bab6c1e79685348465e0186a2dd87aeecc33a5da8",
 			"license": "GPL-3.0-only",
 			"modifications": [
-				"New stylesheet entry with only local imports; preserve Launcher-before/Omorphia/Launcher-after cascade.",
-				"defaults imports reset; intentionally omit Inter because host owns offline fonts."
+				"Local stylesheet entry with sass:meta.load-css in original cascade order; no deprecated Sass @import, 2026-11-15.",
+				"defaults loads reset with @use; host owns offline Inter fonts."
 			]
 		},
 		{
@@ -982,10 +982,11 @@
 			"source": "packages/assets/generated-icons.ts",
 			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
 			"source_sha256": "b4debf8a6a79f12709a0374bc15c0a4a49045dfedbb01bfc30ec518c37fe188e",
-			"vendored_sha256": "882b70597d9742b4d27805906eed5a6b149e87e8df5ded583b4aa9efe757d0a3",
+			"vendored_sha256": "f7cb30b3fb41c2f1aaa492c4abe1d54c0cf2c808ecbeb5f1cb4739a710b647a5",
 			"license": "GPL-3.0-only",
 			"modifications": [
-				"Generate only 39 selected original export names and exact SVG paths; no broad icon maps/business/branding imports."
+				"Generate only 39 selected original export names and exact SVG paths; no broad icon maps/business/branding imports.",
+				"2026-11-20: Export the original notification panel/provider and its required status icons."
 			]
 		},
 		{
@@ -1048,10 +1049,11 @@
 			"source": null,
 			"source_head": null,
 			"source_sha256": null,
-			"vendored_sha256": "c5cbd8ed7cc473054a7f37734e9bc8732a9567ec136a4ab48fa62266c66f8beb",
+			"vendored_sha256": "994939984f075067c7fa4181c7166a530cfba7e427697b3a0b6493c8bec90f69",
 			"license": "GPL-3.0-only",
 			"modifications": [
-				"New UI entry exports only extracted component/composable/provider/type closure. No upstream whole-barrel import."
+				"New UI entry exports only extracted component/composable/provider/type closure. No upstream whole-barrel import.",
+				"2026-11-20: Export the original notification panel/provider and its required status icons."
 			]
 		},
 		{
@@ -1147,7 +1149,7 @@
 			"source": null,
 			"source_head": null,
 			"source_sha256": null,
-			"vendored_sha256": "53125642db321f0ae345cda360e708e7ee72d5c4c3f34cec9e861eb597d2b427",
+			"vendored_sha256": "72aba282a5cad05be68edcca5d602b37ecd8cc4af208e6621616ad4bc064e0b4",
 			"license": "Project documentation",
 			"modifications": [
 				"New extraction/integration documentation, 2026-11-14; no claim of executed application verification."
@@ -1158,10 +1160,67 @@
 			"source": null,
 			"source_head": null,
 			"source_sha256": null,
-			"vendored_sha256": "d5839b03e40a3f142c1810d98b44a8f9301068b173a8e843e8594344609d41be",
+			"vendored_sha256": "c6c47afdf07f33edfb49cad0399846786090516be3accdb485b1d3a8ae88fabf",
 			"license": "Project documentation",
 			"modifications": [
 				"New extraction/integration documentation, 2026-11-14; no claim of executed application verification."
+			]
+		},
+		{
+			"destination": "ui/components/nav/NotificationPanel.vue",
+			"source": "packages/ui/src/components/nav/NotificationPanel.vue",
+			"source_head": "99fdda04092ca894b1d48ba07e673fc814dab389",
+			"source_sha256": "fb5c162974a6bd2dfa2f65a6c41cf1b30bef90c84bb19f3585b45d2f5b77878b",
+			"vendored_sha256": "b4751f2c2496e40477c3ccf94ade7c0ba7de4b1dd6ca0b642efd0bf5ee157ff7",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"2026-11-20: Preserve original success/info/warning/error layout, transitions, hover timers and manual dismissal; Chinese labels and aria-live.",
+				"Offline-only: remove Intercom observer; direct provider import; handle clipboard rejection; restrict action colors to local types."
+			]
+		},
+		{
+			"destination": "ui/providers/web-notifications.ts",
+			"source": "packages/ui/src/providers/web-notifications.ts",
+			"source_head": "99fdda04092ca894b1d48ba07e673fc814dab389",
+			"source_sha256": "555957ea4d4c1a3fb0d3d21f00293e2cedb921d19d34cef8c65d02739e64e891",
+			"vendored_sha256": "f5506305c07a82c8a31425686c4f1630dd2fa2d7336df50b4d2bc24e883e2941",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"2026-11-20: Preserve original deduplication and timer lifecycle; direct create-context import, browser timer type and Chinese fallback.",
+				"Use supplied ID or crypto.randomUUID; honor explicit job identity during deduplication."
+			]
+		},
+		{
+			"destination": "assets/icons/check-circle.svg",
+			"source": "packages/assets/icons/check-circle.svg",
+			"source_head": "99fdda04092ca894b1d48ba07e673fc814dab389",
+			"source_sha256": "1e990a5e0ed19895c73717457ea3662f7f4b894dc604429fd3a6c2a0915eca33",
+			"vendored_sha256": "1e990a5e0ed19895c73717457ea3662f7f4b894dc604429fd3a6c2a0915eca33",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/issues.svg",
+			"source": "packages/assets/icons/issues.svg",
+			"source_head": "99fdda04092ca894b1d48ba07e673fc814dab389",
+			"source_sha256": "2821177792c2b28c6a043ca40efae9e0e92b99889d59b42b25631f190eb100cc",
+			"vendored_sha256": "2821177792c2b28c6a043ca40efae9e0e92b99889d59b42b25631f190eb100cc",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/x-circle.svg",
+			"source": "packages/assets/icons/x-circle.svg",
+			"source_head": "99fdda04092ca894b1d48ba07e673fc814dab389",
+			"source_sha256": "14239890c2d0a7007d9c5a39baa17ef177f12141bdf09f494909f6b44cc99660",
+			"vendored_sha256": "14239890c2d0a7007d9c5a39baa17ef177f12141bdf09f494909f6b44cc99660",
+			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
 			]
 		}
 	]

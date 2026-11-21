@@ -640,9 +640,9 @@ pub struct TraceSession {
     stopped: bool,
 }
 impl TraceSession {
-    pub fn start(collector: Arc<Mutex<Collector>>) -> Result<Self, String> {
+    pub fn start(collector: Arc<Mutex<Collector>>) -> Result<Self, (String,bool)> {
         windows::enable_trace_privilege()
-            .map_err(|code| format!("无法启用当前进程的跟踪权限，Win32={code}"))?;
+            .map_err(|code| (format!("无法启用当前进程的跟踪权限，Win32={code}"),false))?;
         let name = format!(
             "CelesVault-Capture-{}-{}",
             std::process::id(),
@@ -654,9 +654,9 @@ impl TraceSession {
         let code =
             unsafe { StartTraceW(&mut handle, wide_name.as_ptr(), props.as_mut_ptr().cast()) };
         if code != 0 {
-            return Err(format!(
+            return Err((format!(
                 "ETW StartTraceW 失败：Win32={code}。未启动采集；不会停止其他跟踪会话。"
-            ));
+            ),false));
         }
         let mut context = Box::new(CallbackContext {
             collector,
@@ -672,15 +672,15 @@ impl TraceSession {
         let trace = unsafe { OpenTraceW(&mut *logfile) };
         if trace.Value == u64::MAX {
             let error = unsafe { GetLastError() };
-            unsafe {
+            let stopped=unsafe {
                 ControlTraceW(
                     handle,
                     ptr::null(),
                     props.as_mut_ptr().cast(),
                     EVENT_TRACE_CONTROL_STOP,
-                );
+                )
             };
-            return Err(format!("ETW OpenTraceW 失败：Win32={error}"));
+            return Err((format!("ETW OpenTraceW 失败：Win32={error}；自有会话 {name} 清理码={stopped}"),stopped!=0));
         }
         let value = trace.Value;
         let consumer = thread::spawn(move || unsafe {

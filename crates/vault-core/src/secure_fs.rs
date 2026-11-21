@@ -1,7 +1,7 @@
 //! 所有持久写入均限于已锁定、无重解析点的本地目录。句柄不共享 DELETE，
 //! 防止检查后祖先目录被改名/换成 junction；只读源绝不创建或改变源属性。
 use serde::{Deserialize, Serialize};
-use std::{fs::{self, File, OpenOptions}, io, os::windows::{fs::OpenOptionsExt, io::AsRawHandle}, path::{Component, Path, PathBuf}};
+use std::{fs::{self, File, OpenOptions}, io, os::windows::{ffi::OsStrExt, fs::OpenOptionsExt, io::AsRawHandle}, path::{Component, Path, PathBuf}};
 use windows_sys::Win32::{Foundation::*, Storage::FileSystem::*, System::WindowsProgramming::{DRIVE_FIXED, DRIVE_REMOVABLE}};
 
 pub fn local_path(value: &str) -> Result<PathBuf, String> {
@@ -41,6 +41,19 @@ fn reserved(name: &str) -> bool {
 
 pub fn wide(value: &str) -> Vec<u16> { value.encode_utf16().chain(Some(0)).collect() }
 fn fail(context: &str, e: impl std::fmt::Display) -> String { format!("{context}：{e}") }
+fn open_error(context:&str,error:io::Error)->String {
+    if matches!(error.raw_os_error(),Some(code) if code==ERROR_SHARING_VIOLATION as i32 || code==ERROR_LOCK_VIOLATION as i32) {
+        format!("资料正在被其他读写操作占用：{context}：{error}")
+    } else {fail(context,error)}
+}
+pub(crate) fn busy_error(message:&str)->bool {message.starts_with("资料正在被其他读写操作占用：")}
+
+/// 永久数据卷与活动源统一输出 GUID 前缀，不带末尾斜线，也不依赖盘符。
+pub(crate) fn volume_prefix(path:&Path)->Result<String,String> {
+    let value=path.to_string_lossy();
+    let end=value.find('}').ok_or("数据路径没有稳定卷 GUID")?;
+    crate::config::volume_id(&value[..=end])
+}
 fn info(file: &File) -> Result<BY_HANDLE_FILE_INFORMATION, String> {
     let mut result = BY_HANDLE_FILE_INFORMATION::default();
     if unsafe { GetFileInformationByHandle(file.as_raw_handle().cast(), &mut result) } == 0 {
@@ -139,10 +152,6 @@ impl DirectoryGuard {
         }
         Ok(self.path.clone())
     }
-    fn final_handle(&self)->Result<HANDLE,String> {
-        self.validate()?;
-        self._handles.last().map(|h|h.as_raw_handle().cast()).ok_or("发布目录没有已锁定句柄".into())
-    }
 }
 
 pub fn relative(root: &Path, rel: &str) -> Result<PathBuf, String> {
@@ -181,7 +190,7 @@ impl Opened {
         // 验证时禁止写共享，避免摘要验证途中修改；不共享 DELETE 防止路径换代。
         let file = OpenOptions::new().read(true).share_mode(FILE_SHARE_READ)
             .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_SEQUENTIAL_SCAN)
-            .open(path).map_err(|e| fail("打开归档失败", e))?;
+            .open(path).map_err(|e| open_error("打开归档失败", e))?;
         if info(&file)?.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0 {
             return Err("归档实体不是普通文件".into());
         }
@@ -194,7 +203,7 @@ impl Opened {
         let access=FILE_GENERIC_READ | FILE_WRITE_ATTRIBUTES | DELETE | if write_data {FILE_GENERIC_WRITE} else {0};
         let file=OpenOptions::new().access_mode(access)
             .share_mode(0).custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_SEQUENTIAL_SCAN)
-            .open(path).map_err(|e|fail("锁定恢复区自有副本失败",e))?;
+            .open(path).map_err(|e|open_error("锁定恢复区自有副本失败",e))?;
         ensure_single_link(&file)?;
         if info(&file)?.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY != 0 {return Err("恢复区不是普通文件".into());}
         Ok(Self {file,_parents:parents})
@@ -202,6 +211,7 @@ impl Opened {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Identity {
     pub volume_serial: u64,
     pub volume_name: String,
@@ -251,7 +261,8 @@ pub fn create_owned(path: &Path) -> Result<File, String> {
     let parents=DirectoryGuard::acquire(path.parent().ok_or("自有文件没有父目录")?,false)?;
     parents.validate()?;
     let path=parents.path.join(path.file_name().ok_or("自有文件名为空")?);
-    let file = OpenOptions::new().access_mode(FILE_GENERIC_READ | FILE_GENERIC_WRITE | DELETE).create_new(true).share_mode(0)
+    // Rust 的 create_new 仍检查 write 标记，access_mode 不替代该检查。
+    let file = OpenOptions::new().read(true).write(true).access_mode(FILE_GENERIC_READ | FILE_GENERIC_WRITE | DELETE).create_new(true).share_mode(0)
         .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT).open(path).map_err(|e| fail("新建归档临时文件失败", e))?;
     info(&file)?;
     Ok(file)
@@ -295,16 +306,17 @@ pub fn publish_handle(file:&File,directory:&DirectoryGuard,name:&str)->Result<Pa
     if name.is_empty() || name.contains(['\\','/']) {return Err("发布文件名必须是单一安全组件".into());}
     directory.validate()?;
     let target=trusted_path(&directory.path.join(name))?;
-    let units:Vec<u16>=name.encode_utf16().collect();
+    let units:Vec<u16>=target.as_os_str().encode_wide().collect();
     let base=std::mem::offset_of!(FILE_RENAME_INFO,FileName);
     let bytes=base+units.len()*2;
     let mut buffer=vec![0u64;bytes.max(std::mem::size_of::<FILE_RENAME_INFO>()).div_ceil(8)];
     // u64 buffer 为 FILE_RENAME_INFO 保证对齐并含完整变长 UTF-16 尾部。
-    // root 和 source 句柄全程有效；不替换已存在目标，源没有按路径关闭/重开。
+    // Win32 FileRenameInfo 使用完整卷 GUID 路径和空 RootDirectory；不能传目录句柄/相对名。
+    // 目录祖先链保持锁定，源句柄不关闭/重开，且不替换已存在目标。
     unsafe {
         let header=&mut *buffer.as_mut_ptr().cast::<FILE_RENAME_INFO>();
         header.Anonymous.ReplaceIfExists=false;
-        header.RootDirectory=directory.final_handle()?;
+        header.RootDirectory=std::ptr::null_mut();
         header.FileNameLength=(units.len()*2) as u32;
         std::ptr::copy_nonoverlapping(units.as_ptr(),buffer.as_mut_ptr().cast::<u8>().add(base).cast::<u16>(),units.len());
         if SetFileInformationByHandle(file.as_raw_handle().cast(),FileRenameInfo,buffer.as_ptr().cast(),bytes.max(std::mem::size_of::<FILE_RENAME_INFO>()) as u32)==0 {
@@ -354,4 +366,36 @@ pub fn safe_filename(name: &str) -> String {
     result = result.trim_end_matches(['.', ' ']).to_owned();
     if result.is_empty() || reserved(&result) { result.insert(0, '_'); }
     result
+}
+
+#[cfg(test)]
+mod publish_tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn publishes_unicode_name_across_directories_without_replacing_existing_file() {
+        let root=std::env::temp_dir().join(format!("celesvault-publish-{}",uuid::Uuid::new_v4()));
+        let result=(|| -> Result<(),String> {
+            let staging=DirectoryGuard::for_publish(&root.join("staging"))?;
+            let destination=DirectoryGuard::for_publish(&root.join("archive").join("语文"))?;
+            let mut source=create_owned(&staging.path.join("first.part"))?;
+            source.write_all(b"first").map_err(|error|error.to_string())?;
+            let source_identity=snapshot(&source)?.identity;
+            let published=publish_handle(&source,&destination,"课件一.docx")?;
+            assert_eq!(guid_path(&source)?,published);
+            assert_eq!(snapshot(&source)?.identity,source_identity);
+            drop(source);
+            assert_eq!(fs::read(&published).map_err(|error|error.to_string())?,b"first");
+
+            let mut second=create_owned(&staging.path.join("second.part"))?;
+            second.write_all(b"second").map_err(|error|error.to_string())?;
+            assert!(publish_handle(&second,&destination,"课件一.docx").is_err());
+            assert_eq!(fs::read(&published).map_err(|error|error.to_string())?,b"first");
+            assert_eq!(guid_path(&second)?,staging.path.join("second.part"));
+            Ok(())
+        })();
+        let _=fs::remove_dir_all(&root);
+        result.expect("句柄发布应成功且不覆盖目标");
+    }
 }

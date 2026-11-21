@@ -1,6 +1,6 @@
 # 阶段 2 · 最小真实收纳与复制
 
-2026-11-15 用户在正式图标替换后授权继续下一步。当前阶段2代码接入，**Native编译与真实文件操作仍未验证**。阶段1的窗口/托盘验证欠项继续保留，不以新代码替代验收。
+2026-11-15 用户在正式图标替换后授权继续下一步。用户随后已通过本机 `app:dev` 编译并成功启动；**持久目录初始化仍失败，真实监测、归档与复制尚未验收**。窗口/托盘其他验证欠项继续保留，不以成功启动替代完整验收。
 
 ## 当前代码链路
 
@@ -54,8 +54,51 @@
 
 遇编译或权限错误请反馈终端原文，不通过降低UAC/执行策略解决。WebView2仍是环境前提，助手不安装。
 
+### dev 文件监听冲突（2026-11-15）
+
+用户首次 app:dev 编译期间，Vite 监听根目录 `target/debug/build/libsqlite3-sys-*/out/*.o` 时遇到 Windows `EBUSY`，导致 beforeDevCommand 退出。这是前端文件监听与 Rust 构建产物的冲突，不是日志已证明的 Rust 编译错误。
+
+已在 `vite.config.ts` 的 `server.watch.ignored` 排除所有 target 目录，以及 Rust 源码、诊断工具、data、产物目录、Cargo.lock 和持久目录定位文件；前端 src/public/config 继续正常监听，Rust 代码仍由 Tauri 自己的 dev 监听负责。`.gitignore` 不代替 Vite 的显式监听排除。
+
+用户需停止仍在运行的旧 dev 后，在管理员终端重新运行 `pnpm run app:dev`，使监听配置生效。不需要删除 target、cargo clean、重装依赖或启用全局轮询；已编译的 Cargo 缓存保留。此修复尚未在并行 Rust 编译环境复测，助手未运行构建/check/test/dev。
+
+
+### Native 编译反馈（2026-11-15）
+
+用户再次运行 app:dev，编译在 vault-core 失败。本轮修正以下原因：
+
+- `EVENT_TRACE_LOGFILEW` 和 `OpenTraceW` 在 windows-sys 0.61.2 中由 `Win32_System_Time` 特性控制；已按本机绑定补齐该特性，不改为编译器提示的相似名称或自定义替代类型。
+- 归档 `Failure` 原来只有 `From<String>`，无法接收 `ok_or(&str)?`；增加 `From<&str>`，沿用现有字符串错误的非终止重试语义。
+- 删除 capture 模块未使用的 `thread` 导入。
+
+这些改动针对用户日志中的19项编译错误与1项警告。助手未运行编译/check/test，修正后仍需用户重新执行 app:dev；当前没有成功启动或真实收纳的验收结果。保留用户现有 src-tauri/Cargo.toml 修改和生成的 Cargo.lock，不清除构建缓存。
+
+### Tauri 内部依赖混版（2026-11-15）
+
+用户随后遇到 Tauri 自身的28项编译错误：`tauri=2.10.2` 被解析到 `tauri-runtime=2.12.2`、`tauri-runtime-wry=2.12.3`、`tauri-macros=2.7.4`，产生监视器返回类型、Windows/WebView2类型及菜单宏接口冲突。
+
+已只读核对本机 `tauri-2.10.2` 发布包的 Cargo.toml/Cargo.lock，以及对应runtime与宏源码。在项目 `src-tauri/Cargo.toml` 固定 runtime/runtime-wry=2.10.0、macros/codegen=2.5.4、utils=2.8.2，并固定兼容的插件构建工具 tauri-plugin=2.5.3，保持 tauri-build=2.5.5。约束使用 `default-features=false`，不额外启用无关功能。
+
+没有修改Cargo registry里的第三方源码，没有手工修改或删除Cargo.lock，没有清理target，也没有自行运行Cargo。用户下一次 `pnpm run app:dev` 将按明确约束更新锁文件；该解析与编译结果尚待反馈。更新后的锁文件应在确认后保留到版本控制，不执行无范围的cargo update。
+
+### 复制任务内部可见性（2026-11-15）
+
+用户继续编译后报告一项 `Prepared.sources` 私有字段访问错误。已增加只对子模块父级可见的 `Prepared::source_count()`，父模块通过该方法读取去重后的数量；来源列表及其句柄类型继续保持私有，不扩大公共接口。助手未运行编译/check/test，仍需用户继续 app:dev 验证；不能将错误数量减少等同于整个应用已通过验收。
+
+### dev 启动成功后的反馈（2026-11-15）
+
+用户已确认 dev 编译并启动成功，日志显示运行 `target/debug/celesvault.exe`。这验证了此前的 ETW 特性、错误转换、Tauri 版本约束与复制任务可见性修复能够完成编译；不代表真实归档、复制或托盘全部行为验收。
+
+本轮处理：
+
+- 持久目录初始化失败的错误来自 Rust `OpenOptions` 的创建模式检查：`access_mode(FILE_GENERIC_WRITE)` 不代替 `.write(true)` 标记。已给 `create_owned` 补齐 `.read(true).write(true)`，保留自有文件 DELETE 权限、独占共享、`create_new` 不覆盖和重解析点防护；原文件权限不变。导出暂存的创建代码本来已有这两个标记，无需同样修改。
+- ICO 原本包含16–256px七个尺寸，但 tauri-codegen2.5.4只解码目录第一帧；16px首帧被放大导致任务栏模糊。已将256px放首位并同步生成脚本，各帧图像载荷不变，未删除或重采样图稿。
+- Sass `@import` 提示为弃用警告，不是目录初始化失败。全局入口改为 `@use`；vendor按原加载顺序使用 `sass:meta.load-css`，defaults使用reset模块。原主题、控件和CSS规则保持，来源清单同步记录必要适配。
+
+目录初始化与任务栏图标需用户重新启动 dev 复测；助手没有运行Rust/Tauri编译/check/test。没有清理 target 或用户数据，不修改系统图标缓存。独立8016仅前端预览已观察到页面正常渲染，日志无Sass import弃用警告、控制台无错误；1280×800下仍为无外边距的两半布局，Inter/hue38和内容圆角保持。该前端观察不验证Native文件操作；用户8006上的完整dev未被停止。中断后继续时，8016预览已不在运行；两次重新启动因安全判定服务临时不可用而未执行，设置弹窗的追加样式核对未完成，没有换用其他工具绕过该限制。
+
 ## 本轮验证
 
 已执行：图标资产尺寸/透明通道/ICO帧核对、源图稿保留、Browser DOM确认纯文字品牌/新favicon、预览挂载与未配置空态、原设置监测页。使用明确临时浏览器数据观察选中后浮条出现、没有目标时复制禁用，观察后清除测试数据；没有模拟真实文件成功。前端临时出现PreviewAdapter未定义错误后已补齐并重新加载，当前页面正常挂载；旧控制台历史不代表Native结果。
 
-未执行：Rust/Tauri编译、单元测试、真实ETW/SQLite/归档/导出/拔盘/托盘、Win10/学校/触屏与发布构建。此阶段按用户“适时提交”保存代码进度快照，不等于验收通过；阶段1原控件与阶段2代码一并纳入当前功能分支，无推送。
+助手未执行Rust/Tauri编译或测试；用户已确认本机dev编译启动成功。持久目录初始化与任务栏图标修复仍待用户复测，真实ETW/SQLite/归档/导出/拔盘/完整托盘、Win10/学校/触屏与发布构建尚未验收。现有提交是代码进度快照，不等于全链路通过，本轮修复暂未提交、无推送。

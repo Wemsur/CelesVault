@@ -6,6 +6,9 @@ mod locator;
 mod vault_commands;
 mod fs_jobs;
 mod path_guard;
+mod devices;
+#[cfg(all(windows, debug_assertions))]
+mod dev_lifecycle;
 
 use tauri::{Emitter, Manager};
 
@@ -24,10 +27,21 @@ pub fn run() {
 			commands::toggle_maximize_window,
 			commands::hide_window,
 			vault_commands::vault_status, vault_commands::choose_data_root, vault_commands::vault_today,
-			vault_commands::vault_pause, vault_commands::vault_retry, vault_commands::capture_settings,
+			vault_commands::vault_pause, vault_commands::restart_monitoring, vault_commands::vault_retry, vault_commands::capture_settings,
 			vault_commands::set_capture_settings, vault_commands::open_archive, vault_commands::list_drives,
 			vault_commands::browse_directory, vault_commands::export_archives, vault_commands::copy_jobs,
 			vault_commands::cancel_copy,
+			vault_commands::vault_config, vault_commands::save_vault_config, vault_commands::save_app_settings,
+			vault_commands::vault_courses, vault_commands::change_course, vault_commands::library_query,
+			vault_commands::archive_detail, vault_commands::edit_archive, vault_commands::move_usage,
+			vault_commands::save_favorite, vault_commands::remove_favorite, vault_commands::trash_archive,
+			vault_commands::trash_list, vault_commands::restore_archive, vault_commands::purge_archive,
+			vault_commands::archive_thumbnail, vault_commands::import_timetable, vault_commands::import_config,
+			vault_commands::export_timetable, vault_commands::export_config, vault_commands::preview_copy,
+			vault_commands::start_copy_plan, vault_commands::create_folder, vault_commands::rename_entry,
+			vault_commands::recycle_entry, vault_commands::open_browser_entry, vault_commands::reveal_browser_entry,
+			vault_commands::watch_directory, vault_commands::unwatch_directory, vault_commands::file_recoveries,
+			vault_commands::restore_file_recovery, vault_commands::eject_device, vault_commands::save_text_export,
 		])
 		.setup(|app| {
 			if !permissions::elevated().map_err(std::io::Error::other)? {
@@ -45,6 +59,10 @@ pub fn run() {
 			tray::install(app)?;
 			services::start_status_updates(app.handle().clone());
 			if let Some(window) = app.get_webview_window("main") {
+				if let Ok(config) = app.state::<services::Services>().engine.config() {
+					window.set_size(tauri::LogicalSize::new(config.app.window_width, config.app.window_height))?;
+					if config.app.window_maximized { window.maximize()?; }
+				}
 				let handle = window.clone();
 				window.on_window_event(move |event| match event {
 					tauri::WindowEvent::CloseRequested { api, .. } => {
@@ -57,6 +75,8 @@ pub fn run() {
 					_ => {},
 				});
 			}
+			#[cfg(all(windows, debug_assertions))]
+			dev_lifecycle::start(app.handle().clone());
 			Ok(())
 		})
 		.build(tauri::generate_context!())

@@ -66,7 +66,7 @@ pub fn runtime_info(app: tauri::AppHandle) -> Result<RuntimeInfo, String> {
 		elevated: crate::permissions::elevated()?,
 		default_data_root: parent.join("data").to_string_lossy().into_owned(),
 		monitor_state: if status.monitor_state == "running" { "running" } else if status.monitor_state == "paused" { "paused" } else if status.monitor_state == "error" { "error" } else { "unavailable" },
-		monitor_detail: "当前为阶段2最小收纳闭环；完整课表与固定夹尚未接入。",
-		capabilities: Capabilities { capture: true, archive: true, file_browser: true, copy: true, eject: false, persistent_settings: true },
+		monitor_detail: "Windows文件监测、归档与资料库通过真实宿主运行；状态及最近错误在设置中查看。",
+		capabilities: Capabilities { capture: true, archive: true, file_browser: true, copy: true, eject: true, persistent_settings: true },
 	})
 }

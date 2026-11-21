@@ -16,7 +16,24 @@ export default defineConfig({
 			{ find: '#ui', replacement: path('./src/vendor/celestial/ui') },
 		],
 	},
-	server: { host: '127.0.0.1', port: 8006, strictPort: true },
+	server: {
+		host: '127.0.0.1',
+		port: 8006,
+		strictPort: true,
+		watch: {
+			ignored: [
+				'**/target/**',
+				'**/src-tauri/**',
+				'**/crates/**',
+				'**/tools/wps-probe/**',
+				'**/data/**',
+				'**/dist/**',
+				'**/web-dist/**',
+				'**/Cargo.lock',
+				'**/celesvault-location.json',
+			],
+		},
+	},
 	build: { outDir: 'web-dist', emptyOutDir: true },
 	clearScreen: false,
 })

@@ -4,7 +4,7 @@
   "files": [
     {
       "path": "crates/vault-core/Cargo.toml",
-      "sha256": "05be3e57bd1f22a684c44bd6161b813d20dbd672ae8b0656ba3adf0310fbcf76"
+      "sha256": "c801d63de03ab25e9c2d2b914d1f125996fbb92ff7c8a2e18366b3149dc4ed87"
     },
     {
       "path": "crates/vault-core/src/api.rs",
@@ -12,11 +12,11 @@
     },
     {
       "path": "crates/vault-core/src/archive.rs",
-      "sha256": "8a2e6c13fcdc0db0a001c53dee113084d2ccac17edb34d22a9bc2d5a58a259e8"
+      "sha256": "c0db42d130d41678bbdf8a468e8fccfcc4e2fcbc343c5c4c3cd6e44fb41f8d13"
     },
     {
       "path": "crates/vault-core/src/capture/mod.rs",
-      "sha256": "38fbef5589614a2e70b5a5508fea3a2dafd4b592367c967b86fd2258a3c59d15"
+      "sha256": "44aee68c7a46eabb56f017bc239f2bb34681679d1af32420390350917fd1101b"
     },
     {
       "path": "crates/vault-core/src/capture/probe/etw.rs",
@@ -48,7 +48,7 @@
     },
     {
       "path": "crates/vault-core/src/secure_fs.rs",
-      "sha256": "0ffd4b0017beceefa2c27a455045ad238c74ad0279ed6599dc5571f3327c13b6"
+      "sha256": "b19a25c2917bc9c1b390caedbe4e91229e7df787a7df3a02c4673f76b7fb0103"
     },
     {
       "path": "crates/vault-core/src/storage.rs",
@@ -64,7 +64,7 @@
     },
     {
       "path": "src-tauri/src/fs_jobs.rs",
-      "sha256": "44715392fb9a193a3f9da2558b41d93ccce2b95bd17f6034ed3e585bbc51403c"
+      "sha256": "3c0e4d328fe85a8cb920f6bfee4a156837f93dad56c1c5af0ee81759027b5661"
     },
     {
       "path": "src-tauri/src/lib.rs",

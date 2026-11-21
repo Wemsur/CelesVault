@@ -9,7 +9,7 @@
   ],
   "square_canvas": 1088,
   "renderer": "Chromium headless, 2x raster",
-  "operations": "保留原稿；应用派生图移除Figma画板背景，以原1024方形圆角主体居中加32单位透明安全边距，保留三维图层与纹理。PNG RGBA，ICO 多尺寸。",
+  "operations": "保留原稿与图像载荷；ICO保留16–256七个尺寸，256帧放首位，避免Tauri解码首帧16px后放大。",
   "files": [
     {
       "path": "assets/branding/CelesVault.original.svg",
@@ -65,7 +65,7 @@
     },
     {
       "path": "src-tauri/icons/icon.ico",
-      "sha256": "03a4cc2dda4a80a37dc6efd2aa8c5565ee245c75e330d98b3e39b73d8d3eb370"
+      "sha256": "10710db38801539a2faf35aa31bfcc00bd982620e79c9d893b5ae51d3c0d6886"
     },
     {
       "path": "src-tauri/icons/tray.png",
@@ -73,7 +73,7 @@
     },
     {
       "path": "public/favicon.ico",
-      "sha256": "03a4cc2dda4a80a37dc6efd2aa8c5565ee245c75e330d98b3e39b73d8d3eb370"
+      "sha256": "10710db38801539a2faf35aa31bfcc00bd982620e79c9d893b5ae51d3c0d6886"
     },
     {
       "path": "public/favicon-32.png",
@@ -94,6 +94,23 @@
     {
       "path": "src-tauri/icons/tray-error.png",
       "sha256": "2eb7820f71973030da7a26f44461ea660a5168fb81f01f408e954ca4cbd84a4c"
+    },
+    {
+      "path": "src-tauri/icons/tray-capturing.png",
+      "sha256": "b9eb4a850cd031145b44b9f527dd91dbfd542c121cfabab444915e2767d877e3"
+    },
+    {
+      "path": "src-tauri/icons/tray-success.png",
+      "sha256": "5e2774710c5101cf35e141cac06f8cfa8bdf1d2b603f66b69ea6b03c95df7c35"
     }
+  ],
+  "ico_entry_order": [
+    256,
+    128,
+    64,
+    48,
+    32,
+    24,
+    16
   ]
 }

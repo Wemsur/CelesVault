@@ -1,6 +1,7 @@
 """用 Chromium 保留 Figma foreignObject/三维图层，再生成 Windows 图标。
 
 运行：python -I scripts/generate-icons.py <source.svg> <chrome.exe>
+仅派生蓝/绿托盘：python -I scripts/generate-icons.py --tray-activity-only
 只生成资产，不编译应用；原始图稿保留，等比缩放与透明补边。
 """
 import argparse
@@ -9,6 +10,7 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import struct
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
@@ -17,11 +19,57 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def largest_ico_frame_first(path: Path):
+    data = path.read_bytes()
+    reserved, kind, count = struct.unpack_from('<HHH', data)
+    table_end = 6 + count * 16
+    if reserved != 0 or kind != 1 or count == 0 or table_end > len(data):
+        raise ValueError('ICO 目录无效')
+    entries = [data[6 + index * 16:6 + (index + 1) * 16] for index in range(count)]
+    # Tauri 2.5.4 codegen 只解码 ICO 第一帧；保留全部图像与偏移，最大帧放首位。
+    entries.sort(key=lambda entry: (entry[0] or 256) * (entry[1] or 256), reverse=True)
+    path.write_bytes(data[:6] + b''.join(entries) + data[table_end:])
+
+
+def generate_tray_activity_icons():
+    from PIL import ImageOps
+    icons = ROOT / 'src-tauri' / 'icons'
+    with Image.open(icons / 'tray.png') as source:
+        tray = source.convert('RGBA')
+    outputs = []
+    # 与原错误/暂停图相同的灰度着色方式；保留轮廓、明暗与逐像素透明度。
+    for name, dark, light in [('tray-capturing.png', '#123c82', '#70b8ff'),
+                              ('tray-success.png', '#14532d', '#86efac')]:
+        colored = ImageOps.colorize(ImageOps.grayscale(tray), dark, light).convert('RGBA')
+        colored.putalpha(tray.getchannel('A'))
+        output = icons / name
+        colored.save(output)
+        outputs.append(output)
+    return outputs
+
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('source', type=Path)
-    parser.add_argument('browser', type=Path)
+    parser.add_argument('source', type=Path, nargs='?')
+    parser.add_argument('browser', type=Path, nargs='?')
+    parser.add_argument('--tray-activity-only', action='store_true', help='仅从现有 tray.png 生成蓝/绿图标并更新清单')
     args = parser.parse_args()
+    if args.tray_activity_only:
+        outputs = generate_tray_activity_icons()
+        manifest_path = ROOT / 'assets' / 'branding' / 'manifest.json'
+        manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+        for output in outputs:
+            entry = {'path': output.relative_to(ROOT).as_posix(), 'sha256': hashlib.sha256(output.read_bytes()).hexdigest()}
+            existing = next((item for item in manifest['files'] if item['path'] == entry['path']), None)
+            if existing is None:
+                manifest['files'].append(entry)
+            else:
+                existing['sha256'] = entry['sha256']
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
+        print(json.dumps({'files': [p.relative_to(ROOT).as_posix() for p in outputs]}, ensure_ascii=False))
+        return
+    if args.source is None or args.browser is None:
+        parser.error('完整生成需要 source 和 browser；仅蓝/绿托盘请使用 --tray-activity-only')
     raw = args.source.read_bytes()
     tree = ET.fromstring(raw)
     for element in tree.iter():
@@ -76,6 +124,7 @@ def main():
         master.resize((256, 256), Image.Resampling.LANCZOS).save(icons / '128x128@2x.png')
         tray = master.resize((32, 32), Image.Resampling.LANCZOS)
         tray.save(icons / 'tray.png')
+        generate_tray_activity_icons()
         from PIL import ImageOps
         paused = ImageOps.grayscale(tray).convert('RGBA')
         paused.putalpha(tray.getchannel('A'))
@@ -84,6 +133,7 @@ def main():
         error.putalpha(tray.getchannel('A'))
         error.save(icons / 'tray-error.png')
         master.save(icons / 'icon.ico', format='ICO', sizes=[(n,n) for n in [16,24,32,48,64,128,256]])
+        largest_ico_frame_first(icons / 'icon.ico')
         shutil.copyfile(icons / 'icon.ico', public / 'favicon.ico')
         shutil.copyfile(icons / '32x32.png', public / 'favicon-32.png')
         shutil.copyfile(icons / '192x192.png', public / 'icon-192.png') if (icons / '192x192.png').exists() else master.resize((192,192), Image.Resampling.LANCZOS).save(public / 'icon-192.png')
@@ -91,7 +141,7 @@ def main():
         outputs = [branding / 'CelesVault.original.svg', branding / 'CelesVault.svg', branding / 'CelesVault-1024.png', *sorted(icons.glob('*')), *[public / n for n in ['favicon.ico','favicon-32.png','icon-192.png','icon-512.png']]]
         manifest = {'source': '用户提供的 CelesVault.svg', 'source_sha256': hashlib.sha256(raw).hexdigest(),
                     'original_viewbox': viewbox, 'square_canvas': side, 'renderer': 'Chromium headless, 2x raster',
-                    'operations': '保留原稿；应用派生图移除Figma画板背景，以原1024方形圆角主体居中加32单位透明安全边距，保留三维图层与纹理。PNG RGBA，ICO 多尺寸。',
+                    'operations': '保留原稿；应用派生图移除Figma画板背景，以原1024方形圆角主体居中加32单位透明安全边距，保留三维图层与纹理。PNG RGBA，ICO 保留16–256七个尺寸并将256帧放首位，避免Tauri从16帧放大窗口图标。',
                     'files': [{'path': p.relative_to(ROOT).as_posix(), 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in outputs]}
         (branding / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
         print(json.dumps({'files':len(outputs), 'source_sha256':manifest['source_sha256'], 'ico_sizes':[16,24,32,48,64,128,256]}, ensure_ascii=False))

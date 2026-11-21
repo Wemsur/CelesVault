@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import { Card } from '@modrinth/ui'
-import { LibraryIcon } from '@modrinth/assets'
+import { computed, onActivated, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { useVaultStore } from '@/stores/vault'
+import { useLibraryStore } from '@/stores/library'
+import { usePlatform } from '@/platform'
+import ResizableSplit from '@/components/ResizableSplit.vue'
+import DirectoryBrowser from '@/features/file-browser/DirectoryBrowser.vue'
+import LibraryContent from './LibraryContent.vue'
+const route = useRoute()
+const vault = useVaultStore()
+const library = useLibraryStore()
+const platform = usePlatform()
+const ratio = computed({ get: () => vault.config.app.libraryRatio, set: value => { vault.config.app.libraryRatio = value } })
+watch(() => route.query, () => { if (route.name === 'library') library.search(String(route.query.q ?? ''), route.query.regex === '1') }, { immediate: true })
+function enter() { vault.targetContext = 'library'; vault.libraryBrowsing = false }
+onMounted(enter)
+onActivated(enter)
 </script>
-
 <template>
-	<section class="vault-page" aria-labelledby="library-title">
-		<header class="vault-page-heading"><h1 id="library-title">库</h1><span class="vault-muted text-sm">资料与使用历史</span></header>
-		<Card class="vault-panel grow">
-			<div class="vault-empty">
-				<LibraryIcon />
-				<strong>资料库尚未接入</strong>
-				<p>这个路由保留全宽浏览布局。真实索引、分组、筛选和全局搜索在后续阶段接入；当前没有虚构资料。</p>
-			</div>
-		</Card>
-	</section>
+	<section class="vault-library-page"><ResizableSplit v-model="ratio" :single="!vault.libraryBrowsing" :min-size="260" @commit="value => vault.persistApp(platform, { libraryRatio: value })"><template #first><LibraryContent /></template><template #second><DirectoryBrowser context="library" /></template></ResizableSplit></section>
 </template>

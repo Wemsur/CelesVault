@@ -5,5 +5,10 @@
 		"runtimeExecutable": "pnpm",
 		"runtimeArgs": ["run", "web:dev"],
 		"port": 8006
+	}, {
+		"name": "celesvault-style-preview",
+		"runtimeExecutable": "pnpm",
+		"runtimeArgs": ["exec", "vite", "--host", "127.0.0.1", "--port", "8016", "--strictPort"],
+		"port": 8016
 	}]
 }

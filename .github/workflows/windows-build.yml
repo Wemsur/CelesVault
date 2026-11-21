@@ -1,0 +1,121 @@
+name: Windows x64 构建与 Release 草稿
+
+on:
+  workflow_dispatch:
+
+# 仅发布 job 获得写权限；不因 push/tag/PR 自动运行。
+permissions:
+  contents: read
+
+concurrency:
+  group: celesvault-windows-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: 构建 Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 60
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      commit: ${{ steps.metadata.outputs.commit }}
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: '0'
+    steps:
+      - name: 检出本次手动选择的提交
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: 读取仓库版本并校验一致性
+        id: metadata
+        run: node scripts/release-metadata.mjs
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: 缓存 Rust 下载与构建产物
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target/release/deps
+            target/release/build
+            target/release/.fingerprint
+            target/x86_64-pc-windows-msvc/release/deps
+            target/x86_64-pc-windows-msvc/release/build
+            target/x86_64-pc-windows-msvc/release/.fingerprint
+          key: windows-2022-x64-rust-${{ hashFiles('Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            windows-2022-x64-rust-
+
+      - name: 安装 Rust MSVC 工具链
+        run: |
+          rustup toolchain install stable --profile minimal --target x86_64-pc-windows-msvc
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup default stable
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: 使用锁文件安装前端依赖
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: 构建 EXE 和 NSIS
+        # beforeBuildCommand 负责嵌入前端；仅该手动 CI 执行构建，不运行应用或 ETW。
+        run: pnpm exec tauri build --target x86_64-pc-windows-msvc --bundles nsis -- --locked
+
+      - name: 收集二进制、对应源码及校验
+        env:
+          RELEASE_VERSION: ${{ steps.metadata.outputs.version }}
+          RELEASE_COMMIT: ${{ steps.metadata.outputs.commit }}
+        run: ./scripts/collect-windows-artifacts.ps1 -Version $env:RELEASE_VERSION -Commit $env:RELEASE_COMMIT
+
+      - name: 保存构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: CelesVault-${{ steps.metadata.outputs.tag }}-windows-x64
+          path: dist/windows-release/*
+          if-no-files-found: error
+          retention-days: 30
+
+  draft:
+    name: 创建 GitHub Release 草稿
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: CelesVault-${{ needs.build.outputs.tag }}-windows-x64
+          path: release-assets
+
+      - name: 校验产物并创建未公开草稿
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+          RELEASE_COMMIT: ${{ needs.build.outputs.commit }}
+        run: node scripts/publish-github-draft.mjs

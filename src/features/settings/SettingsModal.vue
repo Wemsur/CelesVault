@@ -1,141 +1,77 @@
 <script setup lang="ts">
 import { computed, markRaw, ref, watch } from 'vue'
-import { TabbedModal, ConfirmModal, Card, Button, DropdownSelect, Input, Checkbox } from '@modrinth/ui'
-import { ArchiveIcon, SettingsIcon, LibraryIcon, HomeIcon, SearchIcon } from '@modrinth/assets'
+import { TabbedModal, ConfirmModal, NewModal, Card, Button, DropdownSelect, Input, Checkbox, injectNotificationManager } from '@modrinth/ui'
+import { ArchiveIcon, SettingsIcon, LibraryIcon, HomeIcon, SearchIcon, PlusIcon, XIcon } from '@modrinth/assets'
 import { useShellStore } from '@/stores/shell'
 import { useVaultStore } from '@/stores/vault'
 import { usePlatform } from '@/platform'
-import type { CaptureSettings } from '@/platform/vault-types'
-
-const shell = useShellStore()
-const vault = useVaultStore()
-const platform = usePlatform()
-const capture = ref<CaptureSettings | null>(null)
-const sourceText = ref('')
-const processText = ref('')
-const installText = ref('')
-const extensionsText = ref('')
-const configBusy = ref(false)
-const settingsError = ref('')
-const captureBaseline = ref('')
-const captureDraft = computed(() => JSON.stringify([capture.value, sourceText.value, processText.value, installText.value, extensionsText.value]))
-const captureDirty = computed(() => capture.value !== null && captureBaseline.value !== captureDraft.value)
-async function loadCapture() {
-	capture.value = null
-	if (!vault.status?.dataRoot || platform.mode !== 'native') return
-	try {
-		capture.value = await platform.vault.getCaptureSettings()
-		sourceText.value = capture.value.sources.map(source => source.path).join('\n')
-		processText.value = capture.value.processNames.join(', ')
-		installText.value = capture.value.wpsInstallPaths.join('\n')
-		extensionsText.value = capture.value.extensions.join(', ')
-		captureBaseline.value = captureDraft.value
-	} catch (error) { settingsError.value = String(error) }
+import type { ConfigBundle, Timetable } from '@/platform/vault-types'
+import TimetableEditor from './TimetableEditor.vue'
+import TrashManager from './TrashManager.vue'
+const shell=useShellStore();const vault=useVaultStore();const platform=usePlatform()
+const notifications = injectNotificationManager()
+function previewNotification(type: 'success'|'info'|'warning'|'error') {
+	const seconds = draft.value.app.notificationSeconds
+	if (!Number.isInteger(seconds) || seconds < 0 || seconds > 120) { error.value = '通知时间应为0–120秒'; return }
+	notifications.addNotification({ title: ({success:'操作成功',info:'操作提示',warning:'操作警告',error:'操作失败'})[type], text: seconds === 0 ? '通知示例：手动关闭；设置保存后生效。' : `通知示例：${seconds}秒后消失，悬停可暂停。设置保存后生效。`, type, autoCloseMs: seconds === 0 ? null : seconds * 1000 })
 }
-async function chooseRoot() {
-	configBusy.value = true; settingsError.value = ''
-	try { await platform.vault.chooseRoot(); await vault.refresh(platform); await loadCapture() } catch (error) { settingsError.value = String(error) }
-	finally { configBusy.value = false }
+const modal=ref<InstanceType<typeof TabbedModal>|null>(null);const discard=ref<InstanceType<typeof ConfirmModal>|null>(null);const importModal=ref<InstanceType<typeof NewModal>|null>(null)
+const draft=ref<ConfigBundle>(JSON.parse(JSON.stringify(vault.config)));const baseline=ref(JSON.stringify(draft.value));const busy=ref(false);const error=ref('');const importKind=ref<'config'|'timetable'>('timetable');const importPreview=ref<ConfigBundle|Timetable|null>(null)
+const dirty=computed(()=>JSON.stringify(draft.value)!==baseline.value)
+const tabs=[{name:'存储与归档',category:'应用',icon:markRaw(ArchiveIcon)},{name:'监测',category:'应用',icon:markRaw(SearchIcon)},{name:'课程与课表',category:'应用',icon:markRaw(LibraryIcon)},{name:'界面与行为',category:'应用',icon:markRaw(HomeIcon)},{name:'数据与诊断',category:'应用',icon:markRaw(SettingsIcon)},{name:'关于',category:'CelesVault',icon:markRaw(ArchiveIcon)}]
+async function prepare(){error.value='';try{if(platform.mode==='native'&&vault.status?.dataRoot)await vault.loadConfig(platform);draft.value=JSON.parse(JSON.stringify(vault.config));baseline.value=JSON.stringify(draft.value);modal.value?.show()}catch(e){error.value=String(e);modal.value?.show()}}
+function beforeHide(){if(busy.value)return false;if(!dirty.value)return true;discard.value?.show();return false}
+function discardDraft(){draft.value=JSON.parse(baseline.value);applyPreviewScale();modal.value?.hide()}
+function applyPreviewScale(){document.documentElement.style.fontSize=`${16*vault.config.app.scalePercent/100}px`}
+watch(()=>draft.value.app.scalePercent,value=>{if(shell.settingsOpen&&Number.isFinite(value))document.documentElement.style.fontSize=`${16*Number(value)/100}px`})
+watch(()=>shell.settingsOpen,open=>{if(open)void prepare()})
+async function save(){busy.value=true;error.value='';let saved=false;try{await vault.saveConfig(platform,JSON.parse(JSON.stringify(draft.value)));draft.value=JSON.parse(JSON.stringify(vault.config));baseline.value=JSON.stringify(draft.value);applyPreviewScale();await vault.refresh(platform);saved=true}catch(e){error.value=String(e)}finally{busy.value=false}if(saved)modal.value?.hide()}
+async function chooseRoot(){busy.value=true;error.value='';try{const result=await platform.vault.chooseRoot();if(result){await vault.refresh(platform);draft.value=JSON.parse(JSON.stringify(vault.config));baseline.value=JSON.stringify(draft.value)}}catch(e){error.value=String(e)}finally{busy.value=false}}
+async function pause(){if(busy.value)return;busy.value=true;try{vault.status=await platform.vault.pause(vault.status?.monitorState!=='paused');await vault.refresh(platform)}catch(e){error.value=String(e)}finally{busy.value=false}}
+const knownSubjectIds = computed(() => new Set(draft.value.timetable.subjects.map(subject => subject.id)))
+const orphanExclusions = computed(() => draft.value.capture.excludedSubjectIds.filter(id => !knownSubjectIds.value.has(id)))
+function excludeSubject(id: string, exclude: boolean) {
+	const ids = draft.value.capture.excludedSubjectIds
+	if (exclude && !ids.includes(id)) ids.push(id)
+	if (!exclude) draft.value.capture.excludedSubjectIds = ids.filter(value => value !== id)
 }
-async function saveCapture(): Promise<boolean> {
-	if (!capture.value) return true
-	configBusy.value = true; settingsError.value = ''
-	const lines = (value: string) => value.split(/\r?\n/).map(part => part.trim()).filter(Boolean)
+async function restartMonitoring() {
+	if (busy.value || dirty.value) return
+	busy.value = true; error.value = ''
 	try {
-		await platform.vault.setCaptureSettings({ ...capture.value, sources: lines(sourceText.value).map(path => ({ path, recursive: true })), processNames: processText.value.split(/[,，\s]+/).filter(Boolean), wpsInstallPaths: lines(installText.value), extensions: extensionsText.value.split(/[,，\s]+/).filter(Boolean) })
+		vault.status = await platform.vault.restartMonitoring()
+		await vault.loadConfig(platform)
+		draft.value = JSON.parse(JSON.stringify(vault.config)); baseline.value = JSON.stringify(draft.value)
 		await vault.refresh(platform)
-		await loadCapture()
-		return true
-	} catch (error) { settingsError.value = String(error); return false }
-	finally { configBusy.value = false }
+	}
+	catch (e) { error.value = String(e); await vault.refresh(platform) }
+	finally { busy.value = false }
 }
-async function pause() { try { await platform.vault.pause(vault.status?.monitorState !== 'paused'); await vault.refresh(platform) } catch (error) { settingsError.value = String(error) } }
-const modal = ref<InstanceType<typeof TabbedModal> | null>(null)
-const discard = ref<InstanceType<typeof ConfirmModal> | null>(null)
-const draftDirection = ref(shell.homeDirection)
-const draftScale = ref(shell.scale)
-const dirty = computed(() => captureDirty.value || draftDirection.value !== shell.homeDirection || draftScale.value !== shell.scale)
-const tabs = [
-	{ name: '存储与归档', category: '应用', icon: markRaw(ArchiveIcon) },
-	{ name: '监测', category: '应用', icon: markRaw(SearchIcon) },
-	{ name: '课程与课表', category: '应用', icon: markRaw(LibraryIcon) },
-	{ name: '界面与行为', category: '应用', icon: markRaw(HomeIcon) },
-	{ name: '数据与诊断', category: '应用', icon: markRaw(SettingsIcon) },
-	{ name: '关于', category: 'CelesVault', icon: markRaw(ArchiveIcon) },
-]
-function resetDraft() { draftDirection.value = shell.homeDirection; draftScale.value = shell.scale }
-function beforeHide() {
-	if (!dirty.value) return true
-	discard.value?.show()
-	return false
-}
-function discardChanges() { resetDraft(); capture.value = null; modal.value?.hide() }
-async function saveSession() {
-	if (captureDirty.value && !(await saveCapture())) return
-	shell.homeDirection = draftDirection.value
-	shell.scale = draftScale.value
-	document.documentElement.style.fontSize = `${16 * Number(draftScale.value.replace('%', '')) / 100}px`
-	shell.statusMessage = '界面设置已应用到本次会话；持久配置将在后续阶段接入。'
-	modal.value?.hide()
-}
-watch(() => shell.settingsOpen, open => {
-	if (open) { resetDraft(); settingsError.value = ''; void loadCapture(); modal.value?.show() }
-})
+function addSource(){draft.value.capture.sources.push({path:'',recursive:true})}
+async function fileImport(event:Event,kind:'config'|'timetable'){
+	const input=event.target as HTMLInputElement;const file=input.files?.[0];if(!file)return;error.value='';busy.value=true
+	try{if(file.size>1024*1024)throw new Error('导入文件不得超过1MiB');const text=await file.text();importKind.value=kind;importPreview.value=kind==='config'?await platform.vault.importConfig(text):await platform.vault.importTimetable(text,file.name.toLowerCase().endsWith('.csv')?'csv':'json');importModal.value?.show()}catch(e){error.value=String(e)}finally{input.value='';busy.value=false}}
+function applyImport(){if(!importPreview.value)return;if(importKind.value==='config')draft.value=importPreview.value as ConfigBundle;else draft.value.timetable=importPreview.value as Timetable;importPreview.value=null;importModal.value?.hide()}
+async function exportData(kind:'config'|'csv'|'json'|'diagnostics'){
+	busy.value=true;error.value='';try{const text=kind==='config'?await platform.vault.exportConfig():kind==='diagnostics'?JSON.stringify({version:shell.runtime?.version,mode:platform.mode,elevated:shell.runtime?.elevated,monitorState:vault.status?.monitorState,pendingCount:vault.status?.pendingCount,failedCount:vault.status?.failedCount,hasErrors:vault.status?.hasErrors,excludedSubjectCount:vault.config.capture.excludedSubjectIds.length,jobs:vault.jobs.map(job=>({state:job.state,total:job.total,processed:job.processed,copied:job.copied,skipped:job.skipped}))},null,2):await platform.vault.exportTimetable(kind);await platform.vault.saveText(text,kind==='csv'?'CelesVault-课表.csv':kind==='json'?'CelesVault-课表.json':kind==='diagnostics'?'CelesVault-诊断.json':'CelesVault-配置.json')}catch(e){error.value=String(e)}finally{busy.value=false}}
 </script>
-
 <template>
-	<TabbedModal ref="modal" header="设置" :tabs="tabs" :before-hide="beforeHide" :on-hide="() => { shell.settingsOpen = false }" width="60rem" max-width="65rem" :floating-action-bar-shown="dirty">
-		<template #content="{ index }">
-			<div class="vault-setting">
-				<p v-if="settingsError" class="vault-file-error text-sm" role="status">{{ settingsError }}</p>
-				<template v-if="index === 0">
-					<h2>存储与归档</h2>
-					<Card><div class="vault-setting-label"><strong>持久目录</strong><small>{{ vault.status?.dataRoot ?? shell.runtime?.defaultDataRoot ?? '程序同级 data' }}</small><small>请选择不受还原影响的目录。初始化后开始真实监测；重启通过程序同级定位文件恢复。</small></div></Card>
-					<Button type="outlined" :disabled="platform.mode !== 'native' || configBusy || dirty" @click="chooseRoot">{{ vault.status?.dataRoot ? '更换持久目录' : '选择持久目录并启动' }}</Button><small class="vault-muted">浏览器不会创建目录。更换目录不会迁移旧资料；有待处理归档或复制时禁止更换。</small>
-				</template>
-				<template v-else-if="index === 1">
-					<h2>监测</h2>
-					<Card><strong>{{ vault.status?.monitorState === 'running' ? '正在监测' : vault.status?.monitorState === 'paused' ? '已暂停' : vault.status?.monitorState === 'error' ? '监测异常' : '未配置' }}</strong><p class="vault-muted mt-2">{{ vault.status?.monitorDetail }}</p></Card>
-					<Button type="outlined" :disabled="platform.mode !== 'native' || !vault.status?.dataRoot" @click="pause">{{ vault.status?.monitorState === 'paused' ? '恢复监测' : '暂停监测' }}</Button>
-					<template v-if="capture">
-						<DropdownSelect v-model="capture.mode" name="监测模式" aria-label="监测模式" :options="['loose', 'strict']" :display-name="value => value === 'loose' ? '宽松' : '严格'" />
-						<Checkbox v-model="capture.includeDefaultSources" label="包含桌面、下载和 D 盘" /><Checkbox v-model="capture.includeUsb" label="包含已挂载 USB 存储" />
-						<label>附加来源目录（每行一个，递归）<textarea v-model="sourceText" rows="3" class="w-full mt-2" /></label>
-						<label>主程序名称<Input v-model="processText" class="mt-2" /></label>
-						<label>WPS 安装目录（宽松模式辅助程序，每行一个）<textarea v-model="installText" rows="2" class="w-full mt-2" /></label>
-						<label>扩展名<Input v-model="extensionsText" class="mt-2" /></label>
-						<Button type="colored" color="brand" :disabled="configBusy" @click="saveCapture">保存监测规则</Button>
-					</template>
-					<p class="vault-muted">PID 只用于运行时关联。宽松也不是完美的人工打开/预览判断；不会把 Explorer 或 System 访问直接收纳。</p>
-				</template>
-				<template v-else-if="index === 2">
-					<h2>课程与课表</h2>
-					<Card><strong>时间段与星期课表分别编辑</strong><p class="vault-muted mt-2">课表在后续阶段接入，支持手动、CSV 与应用 JSON。当前不创建示例课表。</p></Card>
-				</template>
-				<template v-else-if="index === 3">
-					<h2>界面与行为</h2>
-					<div class="vault-setting-row"><div class="vault-setting-label"><label for="home-direction">主页分屏方向</label><small>本次会话使用，主页可随时切换。</small></div><DropdownSelect id="home-direction" name="主页分屏方向" aria-label="主页分屏方向" v-model="draftDirection" :options="['horizontal', 'vertical']" :display-name="id => id === 'horizontal' ? '左右' : '上下'" /></div>
-					<div class="vault-setting-row"><div class="vault-setting-label"><label for="ui-scale">界面缩放</label><small>保持原控件比例；本次会话应用。</small></div><DropdownSelect id="ui-scale" name="界面缩放" aria-label="界面缩放" v-model="draftScale" :options="['100%', '110%', '125%']" /></div>
-					<Card><strong>关闭到托盘</strong><p class="vault-muted mt-2">关闭窗口后可从托盘重新打开；退出使用托盘菜单。本机不注册自启动。</p></Card>
-				</template>
-				<template v-else-if="index === 4">
-					<h2>数据与诊断</h2>
-					<dl class="vault-diagnostics"><dt>运行模式</dt><dd>{{ shell.runtime?.mode === 'native' ? 'Tauri 原生宿主' : '浏览器预览' }}</dd><dt>管理员</dt><dd>{{ shell.runtime?.elevated ? '是' : '否（浏览器无原生权限）' }}</dd><dt>监测</dt><dd>{{ vault.status?.monitorState }}</dd><dt>归档待处理/失败</dt><dd>{{ vault.status?.pendingCount ?? 0 }} / {{ vault.status?.failedCount ?? 0 }}</dd><dt>持久设置</dt><dd>监测规则已接 data；界面设置仍仅本次会话</dd></dl>
-					<p v-for="(line, index) in vault.status?.health ?? []" :key="index" class="vault-muted text-xs">{{ line }}</p>
-					<p v-if="shell.statusMessage" class="vault-muted text-sm" role="status">最近操作：{{ shell.statusMessage }}</p>
-					<Button type="outlined" disabled>导出诊断（尚未接入）</Button>
-				</template>
-				<template v-else>
-					<h2>CelesVault</h2><p>版本 {{ shell.runtime?.version ?? '0.2.0' }} · 阶段 2</p>
-					<p class="vault-muted">WPS 教学资料收纳与归档工具。当前是最小真实闭环，需 Native 验证；完整课表、固定夹和库尚未完成。</p>
-					<Card><strong>第三方与许可</strong><p class="vault-muted mt-2">通用 UI 来自 Celestial Launcher；应用图标使用你的 CelesVault 图稿。应用按 GPL-3.0-only 分发，Inter 3.19 使用 SIL OFL。</p></Card>
-				</template>
-			</div>
-		</template>
-		<template #footer><p class="vault-muted px-4 py-3 text-xs">CelesVault {{ shell.runtime?.version ?? '0.2.0' }}<br />{{ shell.runtime?.mode === 'native' ? 'Windows · 原生宿主' : '浏览器预览' }}</p></template>
-		<template #floating-action-bar>
-			<Card v-if="dirty" class="!m-0"><div class="flex items-center justify-between gap-3"><span class="text-sm vault-muted">有未应用的修改</span><div class="flex gap-2"><Button type="outlined" @click="modal?.hide()">取消</Button><Button type="colored" color="brand" :disabled="configBusy" @click="saveSession">{{ captureDirty ? '保存规则并应用' : '应用到本次会话' }}</Button></div></div></Card>
-		</template>
+	<TabbedModal ref="modal" header="设置" :tabs="tabs" :before-hide="beforeHide" :on-hide="()=>{shell.settingsOpen=false;applyPreviewScale()}" width="60rem" max-width="65rem" :floating-action-bar-shown="dirty" :disable-close="busy">
+		<template #content="{index}"><div class="vault-setting"><p v-if="busy" class="vault-muted text-sm" role="status">正在处理，请等待操作完成；此时不会提前报告保存或重启成功。</p><p v-if="error" class="vault-file-error text-sm" role="status">{{error}}</p>
+			<template v-if="index===0"><h2>存储与归档</h2><Card><div class="vault-setting-label"><strong>持久目录</strong><small>{{vault.status?.dataRoot??shell.runtime?.defaultDataRoot??'程序同级 data'}}</small><small>资料、SQLite、课表、规则和收藏存放在同一持久根。请使用不受还原影响的目录。</small></div></Card><Button type="outlined" :disabled="platform.mode!=='native'||busy||dirty" @click="chooseRoot">{{vault.status?.dataRoot?'更换持久目录':'选择持久目录并启动'}}</Button><p class="vault-muted text-sm">更换目录不迁移旧资料；活动任务期间不能更换。没有源文件修改、静默覆盖或自动清档。</p><Card><strong>归档副本只读</strong><p class="vault-muted mt-2">默认打开保存副本，需要编辑时另存文件。去重依靠保存内容摘要；异常或缺失的副本不会继续导出。</p></Card></template>
+			<template v-else-if="index===1"><h2>监测</h2><Card><strong>{{vault.status?.monitorState==='running'?'正在监测':vault.status?.monitorState==='paused'?'已暂停':vault.status?.monitorState==='error'?'监测异常':'未配置'}}</strong><p class="vault-muted mt-2">{{vault.status?.monitorDetail}}</p></Card><Button type="outlined" :disabled="platform.mode!=='native'||!vault.status?.dataRoot||busy" @click="pause">{{vault.status?.monitorState==='paused'?'恢复监测':'暂停监测'}}</Button><DropdownSelect v-model="draft.capture.mode" name="监测模式" aria-label="监测模式" :options="['loose','strict']" :display-name="value=>value==='loose'?'宽松':'严格'"/><Checkbox v-model="draft.capture.includeDefaultSources" label="包含桌面、下载和D盘"/><Checkbox v-model="draft.capture.includeUsb" label="包含已挂载USB存储"/>
+				<Button type="outlined" :loading="busy" :disabled="platform.mode!=='native'||!vault.status?.dataRoot||busy||dirty" @click="restartMonitoring">重启监测服务</Button><p class="vault-muted text-sm">仅重启本应用的监测与归档后台，保留资料和暂停状态。请先保存或放弃设置草稿；不会终止其他安装的同名进程。</p>
+					<h3>排除科目</h3><p class="vault-muted text-sm">勾选的科目不收纳新资料。课前、课间按下一节课判断，不跳到其他科目；已经归档的历史保留。保存时会停止旧后台并应用规则，请等待保存完成。</p><p v-if="!draft.timetable.subjects.length" class="vault-muted text-sm">先在“课程与课表”添加科目，再选择排除。</p><Checkbox v-for="subject in draft.timetable.subjects" :key="subject.id" :label="`排除 ${subject.name}`" :model-value="draft.capture.excludedSubjectIds.includes(subject.id)" :disabled="busy" @update:model-value="value=>excludeSubject(subject.id,value)"/><div v-for="id in orphanExclusions" :key="id" class="flex items-center gap-2"><small class="vault-muted">已移除科目（仍保留排除）：{{id}}</small><Button type="quiet" :disabled="busy" @click="excludeSubject(id,false)">解除排除</Button></div>
+					<h3>附加来源目录</h3><div v-for="(source,i) in draft.capture.sources" :key="i" class="flex items-center gap-2"><Input v-model="source.path" aria-label="来源目录" class="grow" placeholder="D:\教学资料"/><Checkbox v-model="source.recursive" label="递归"/><Button type="quiet" @click="draft.capture.sources.splice(i,1)"><XIcon/>移除</Button></div><Button type="outlined" @click="addSource"><PlusIcon/>添加来源</Button>
+				<label>扩展名（逗号分隔）<Input :model-value="draft.capture.extensions.join(',')" class="mt-2" @update:model-value="value=>draft.capture.extensions=String(value??'').split(/[,，\s]+/).filter(Boolean)"/></label><label>主程序名称（逗号分隔）<Input :model-value="draft.capture.processNames.join(',')" class="mt-2" @update:model-value="value=>draft.capture.processNames=String(value??'').split(/[,，\s]+/).filter(Boolean)"/></label><label>允许程序路径（每行一个）<textarea :value="draft.capture.processPaths.join('\n')" rows="2" class="w-full mt-2" @input="draft.capture.processPaths=($event.target as HTMLTextAreaElement).value.split(/\r?\n/).filter(Boolean)"/></label><label>WPS安装目录（宽松辅助进程，每行一个）<textarea :value="draft.capture.wpsInstallPaths.join('\n')" rows="2" class="w-full mt-2" @input="draft.capture.wpsInstallPaths=($event.target as HTMLTextAreaElement).value.split(/\r?\n/).filter(Boolean)"/></label><label>排除目录（每行一个）<textarea :value="draft.capture.excludedPaths.join('\n')" rows="2" class="w-full mt-2" @input="draft.capture.excludedPaths=($event.target as HTMLTextAreaElement).value.split(/\r?\n/).filter(Boolean)"/></label><p class="vault-muted text-sm">归档目录与临时锁文件自动排除。PID仅用于运行时关联；不能完美区分预览与人工打开。</p></template>
+			<template v-else-if="index===2"><h2>课程与课表</h2><TimetableEditor v-model="draft.timetable"/><div class="vault-setting-import"><label class="vault-file-import">导入CSV/JSON<input type="file" accept=".csv,.json" :disabled="platform.mode!=='native'||busy" @change="fileImport($event,'timetable')"/></label><Button type="outlined" :disabled="platform.mode!=='native'||busy" @click="exportData('csv')">导出CSV模板</Button><Button type="outlined" :disabled="platform.mode!=='native'||busy" @click="exportData('json')">导出课表JSON</Button></div></template>
+			<template v-else-if="index===3"><h2>界面与行为</h2><div class="vault-setting-row"><label>主页方向</label><DropdownSelect v-model="draft.app.homeDirection" name="主页方向" aria-label="主页方向" :options="['horizontal','vertical']" :display-name="value=>value==='horizontal'?'左右':'上下'"/></div><div class="vault-setting-row"><label>界面缩放</label><DropdownSelect v-model="draft.app.scalePercent" name="界面缩放" aria-label="界面缩放" :options="[75,100,110,125,150,175,200]" :display-name="value=>`${value}%`"/></div><h3>操作通知</h3><label>自动关闭时间（秒，0为手动关闭）<Input v-model="draft.app.notificationSeconds" type="number" :min="0" :max="120" :step="1" aria-label="通知自动关闭秒数" class="mt-2"/></label><p class="vault-muted text-sm">成功、提示、警告和错误通知使用同一时间，默认6秒。鼠标悬停暂停计时；复制进行中的进度不会自动消失。</p><div class="flex flex-wrap gap-2"><Button type="outlined" @click="previewNotification('success')">预览成功通知</Button><Button type="outlined" @click="previewNotification('info')">预览普通通知</Button><Button type="outlined" @click="previewNotification('warning')">预览警告通知</Button><Button type="outlined" @click="previewNotification('error')">预览错误通知</Button></div><Checkbox v-model="draft.app.showHidden" label="显示目录隐藏文件"/><DropdownSelect v-model="draft.app.browserView" name="目录视图" aria-label="目录视图" :options="['grid','list']" :display-name="value=>value==='grid'?'网格':'列表'"/><Card><strong>关闭到托盘</strong><p class="vault-muted mt-2">关闭窗口不退出监测。分屏比例、窗口大小和最大化状态保存到data。自启动需要学校持久触发条件，不在本机注册。</p></Card></template>
+			<template v-else-if="index===4"><h2>数据与诊断</h2><dl class="vault-diagnostics"><dt>运行模式</dt><dd>{{platform.mode==='native'?'Tauri 原生宿主':'浏览器预览'}}</dd><dt>管理员</dt><dd>{{shell.runtime?.elevated?'是':'否 / 不可用'}}</dd><dt>监测</dt><dd>{{vault.status?.monitorState}}</dd><dt>待处理 / 失败</dt><dd>{{vault.status?.pendingCount??0}} / {{vault.status?.failedCount??0}}</dd></dl><p v-for="(line,i) in vault.status?.health??[]" :key="i" class="vault-muted text-xs">{{line}}</p><p v-if="vault.error" class="vault-file-error">{{vault.error}}</p><div class="vault-setting-import"><Button type="outlined" :disabled="platform.mode!=='native'||busy" @click="exportData('diagnostics')">导出本地诊断</Button><Button type="outlined" :disabled="platform.mode!=='native'||busy" @click="exportData('config')">导出配置</Button><label class="vault-file-import">导入配置草稿<input type="file" accept=".json" :disabled="platform.mode!=='native'||busy" @change="fileImport($event,'config')"/></label></div><p class="vault-muted text-xs">配置导出不包含资料实体，不是完整灾备，不会自动上传。</p><TrashManager/></template>
+			<template v-else><h2>CelesVault</h2><p>版本 {{shell.runtime?.version??'0.2.0'}}</p><p class="vault-muted">高中教学资料收纳与归档工具。只接WPS教学格式，不做账号、云、AI或遥测。</p><Card><strong>第三方与许可</strong><p class="vault-muted mt-2">UI来自Celestial Launcher，使用用户自己的CelesVault图标；GPL-3.0-only应用代码，Inter3.19为SIL OFL。完整对应源码及许可随发行提供。</p></Card></template>
+		</div></template>
+		<template #footer><p class="vault-muted px-4 py-3 text-xs">CelesVault {{shell.runtime?.version??'0.2.0'}}<br/>{{platform.mode==='native'?'Windows 原生宿主':'浏览器预览'}}</p></template>
+		<template #floating-action-bar><Card v-if="dirty" class="!m-0"><div class="flex items-center justify-between gap-3"><span class="text-sm vault-muted">有未保存的修改</span><div class="flex gap-2"><Button type="outlined" :disabled="busy" @click="modal?.hide()">取消</Button><Button type="colored" color="brand" :loading="busy" :disabled="platform.mode!=='native'||!vault.status?.dataRoot" @click="save">保存</Button></div></div></Card></template>
 	</TabbedModal>
-	<ConfirmModal ref="discard" title="放弃未应用的修改？" description="界面或监测规则尚未保存，关闭后丢弃本次草稿。" proceed-label="放弃修改" :danger="false" @proceed="discardChanges" />
+	<ConfirmModal ref="discard" title="放弃未保存的修改？" description="课表、规则或界面草稿不会写入data，缩放恢复当前设置。" proceed-label="放弃修改" :danger="false" @proceed="discardDraft"/>
+	<NewModal ref="importModal" header="确认导入草稿" width="32rem"><p>数据校验完成，导入后仍需点击设置“保存”才会写入data。不会重算历史课程。</p><pre class="vault-import-preview">{{JSON.stringify(importPreview,null,2).slice(0,6000)}}</pre><template #actions><Button type="outlined" @click="importModal?.hide()">取消</Button><Button type="colored" color="brand" @click="applyImport">使用这份草稿</Button></template></NewModal>
 </template>

@@ -42,16 +42,24 @@
 | `ui/providers/{create-context,modal-behavior}.ts` | 原同目录 | 原 UI 叶子 DI；create-context 保留完整 UnoVue MIT notice。不复制原 provider 总 barrel |
 | `ui/utils/markdown.ts` | 接口原用于 `packages/utils/parse.ts` | 新本地 marked + DOMPurify 安全适配；原网络图片代理/共享 utils **不复制**。HTML profile 禁止远程资源/嵌入/脚本/样式等；DOMPurify 不支持时只输出转义文字 |
 | `ui/index.ts`、按钮/输入/provider `index.ts` | 新建精简出口 | 仅导出复制组件和所需 types/providers/composables；不加载业务/API、账号、通知、编辑器、3D、翻译或原全部模块 |
-| `styles/{variables,normalize,reset,defaults,accessibility}.scss` | `packages/assets/styles/` | 原样复制，保留 customdark、各 surface/brand/text、间距/圆角/焦点等规则 |
+| `styles/{variables,normalize,reset,defaults,accessibility}.scss` | `packages/assets/styles/` | 原样式规则保留；defaults仅将reset的旧Sass import改为use，消除弃用警告，customdark/surface/brand/text及间距圆角不改 |
 | `styles/classes.scss` | 原同名文件 | 保留 Card、Markdown、工具提示等原规则；只删除未用原 native-select 中的远程 placeholder URL |
 | `styles/tailwind-utilities.scss` | `packages/ui/src/styles/tailwind-utilities.css` | 内容字节不变，扩展名改 SCSS 用于本地内联；保留浮层/菜单/heading utilities |
 | `styles/tailwind-preset.ts` | `packages/tooling-config/tailwind/tailwind-preset.ts` | 保留原 token map/preflight=false；去掉闭包没有使用的 container-query plugin，避免额外无关依赖 |
 | `styles/launcher-{before,after}.scss` | `apps/app-frontend/src/assets/stylesheets/global.scss` | 只提取原 body/link/scrollbar/input 与 light-sense 必需规则；保留原 cascade 顺序，源范围见清单。不带入整个 App 或背景业务样式 |
-| `styles/index.scss` | 新建本地入口 | 正确样式入口；本地依赖闭包，不导入远程字体或原 assets barrel |
+| `styles/index.scss` | 新建本地入口 | 本地依赖闭包，无远程字体或原assets barrel；2026-11-15改为sass:meta.load-css，逐项保持原CSS加载顺序，移除旧Sass import弃用警告 |
 | `assets/icons/*.svg` | `packages/assets/icons/` | 精选 39 个实际 SVG 字节拷贝，保留已有 Lucide notice，完整许可另存 |
 | `assets/generated-icons.ts`、`assets/index.ts` | 原 generated-icons.ts 选取导出/新精简入口 | 只生成需要的原名字/路径，不复制图标映射或所有资产 barrel，不添加伪称原有的图标名 |
 | `assets/celestial.svg` | `apps/app-frontend/src/assets/celestial.svg` | 用户原 Celestial logo 字节拷贝，保留 CSS brand 色；出口名 CelestialLogo |
 | `provenance/licenses/` | 根和 3 个来源 package 的 COPYING/LICENSE，已安装 Lucide 包 LICENSE | 逐字保留原 GPL、COPYING 版权/品牌条件和 Lucide/Feather ISC/MIT 许可 |
+
+## 2026-11-20：操作通知接入
+
+直接复制本地 Celestial 当前工作树的 `packages/ui/src/components/nav/NotificationPanel.vue` 与 `providers/web-notifications.ts`，不以自制卡片仿造通知。保留四类颜色/图标（成功、提示、警告、错误）、堆叠与进退场、悬停计时、关闭、复制文字和操作按钮。仅做中文标签、离线依赖与浏览器计时类型适配；移除无关 Intercom 观察器，不引入 i18n、账号、远程图片、系统推送或 Popup 社交/下载业务。保留现有 GPL/图标许可。
+
+新增原 SVG `check-circle`、`issues`、`x-circle` 字节拷贝；机器清单包含当前源/目标 SHA-256。`src/platform/notifications.ts` 的本地存储实现沿用 `apps/app-frontend/src/providers/app-notifications.ts` 的原数组模式，扩展任务ID更新、最多六条普通通知保留及从持久设置读取时长。宿主 `OperationNotifications.vue` 只把真实复制任务与操作错误接到原面板，不伪造成功。进度不超时；结束只计时一次，不因轮询重新弹出。
+
+右下角为避让安全弹出按钮，宿主仅增加面板底部偏移、视口宽高边界和溢出滚动，不改变原通知内部布局。现已不再使用旧的常驻复制结果文本块。设置提供四类显式示例（文字说明为示例）及0–120秒，默认6秒；保存后生效。
 
 ## 许可与版权
 

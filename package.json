@@ -7,7 +7,7 @@
 	"packageManager": "pnpm@10.15.0",
 	"scripts": {
 		"web:dev": "vite --host 127.0.0.1 --port 8006 --strictPort",
-		"app:dev": "tauri dev",
+		"app:dev": "node scripts/dev-launcher.mjs",
 		"web:build": "vite build",
 		"app:build": "tauri build --target x86_64-pc-windows-msvc"
 	},

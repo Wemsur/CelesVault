@@ -1,6 +1,6 @@
 # CelesVault 工程约束
 
-- 工作范围以 `docs/requirements.md` 和 `docs/implementation-plan.md` 为准。2026-11-15 用户授权替换正式图标并继续下一步，当前范围扩展至阶段 2 最小真实收纳/复制闭环；不自动推进阶段 3。
+- 工作范围以 `docs/requirements.md` 和 `docs/implementation-plan.md` 为准。2026-11-15用户要求连续推进：完成一阶段后直接进入下一阶段，当前授权实施阶段3–7，不逐阶段等待“继续”。未完成的Native/CI/学校验收单独记录；不据此扩大到范围外功能或擅自发布。
 - **不自行运行构建、编译、cargo check、测试、类型检查、lint 或完整 Rust/Tauri dev。** 用户自己运行并反馈。允许仅前端浏览器预览；预览不等于 Native 验证。
 - 入口：`pnpm run web:dev` 为仅前端，`pnpm run app:dev` 为用户运行的完整开发。
 - 全中文；不引入 i18n、语言包、翻译 Provider、语言设置或单语言翻译壳。

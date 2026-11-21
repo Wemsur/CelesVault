@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-//! 阶段 2 的 Windows 本地路径边界。只供 fs_jobs 使用，不接受前端传来的设备路径。
-//! 参考 Sigma dir_reader 的元数据分层设计；没有移植网络、链接解析或文件管理业务。
+//! Windows 本地路径边界，只接受受校验的浏览与文件操作参数。
+//! 不移植网络、链接解析、任意命令执行或原始资料归档修改业务。
 //!
 //! 每级目录都以 OPEN_REPARSE_POINT 打开，并持有不共享 DELETE 的 File。
 //! 内部 I/O 使用来自句柄的卷 GUID 路径，不能因盘符重新分配而改写另一块盘。
@@ -9,11 +9,12 @@
 
 #[cfg(windows)]
 mod windows {
+    use serde::{Deserialize, Serialize};
     use std::{
         fs::{self, File, OpenOptions},
         io,
         mem::{offset_of, size_of},
-        os::windows::{fs::{MetadataExt, OpenOptionsExt}, io::AsRawHandle},
+        os::windows::{ffi::OsStrExt, fs::{MetadataExt, OpenOptionsExt}, io::AsRawHandle},
         path::{Path, PathBuf},
         ptr,
         sync::Arc,
@@ -21,16 +22,17 @@ mod windows {
     use windows_sys::Win32::{
         Foundation::{GENERIC_READ, GENERIC_WRITE},
         Storage::FileSystem::{
-            BY_HANDLE_FILE_INFORMATION, DELETE, FILE_ADD_FILE, FILE_ATTRIBUTE_DIRECTORY,
-            FILE_ATTRIBUTE_NORMAL, FILE_ATTRIBUTE_REPARSE_POINT,
-            FILE_DISPOSITION_INFO, FILE_FLAG_BACKUP_SEMANTICS,
+            BY_HANDLE_FILE_INFORMATION, DELETE, FILE_ADD_FILE, FILE_ADD_SUBDIRECTORY,
+            FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_NORMAL, FILE_ATTRIBUTE_REPARSE_POINT,
+            FILE_BASIC_INFO, FILE_DISPOSITION_INFO, FILE_FLAG_BACKUP_SEMANTICS,
             FILE_FLAG_OPEN_REPARSE_POINT, FILE_FLAG_SEQUENTIAL_SCAN,
             FILE_LIST_DIRECTORY, FILE_READ_ATTRIBUTES, FILE_RENAME_INFO,
-            FILE_SHARE_READ, FILE_SHARE_WRITE, FileDispositionInfo, FileRenameInfo,
-            GetDriveTypeW, GetFileInformationByHandle, GetFinalPathNameByHandleW,
-            GetVolumeInformationByHandleW, SetFileInformationByHandle, VOLUME_NAME_GUID,
+            FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE, FileBasicInfo, FileDispositionInfo, FileRenameInfo,
+            GetDriveTypeW, GetFileInformationByHandle, GetFileInformationByHandleEx,
+            GetFinalPathNameByHandleW, GetVolumeInformationByHandleW,
+            SetFileInformationByHandle, VOLUME_NAME_GUID,
         },
-        System::WindowsProgramming::{DRIVE_FIXED, DRIVE_REMOVABLE},
+        System::{SystemServices::FILE_READ_ONLY_VOLUME, WindowsProgramming::{DRIVE_FIXED, DRIVE_REMOVABLE}},
     };
 
     const MAX_PATH_UNITS: usize = 4096;
@@ -60,7 +62,7 @@ mod windows {
             })
     }
 
-    fn valid_component(value: &str) -> bool {
+    pub(crate) fn valid_component(value: &str) -> bool {
         !value.is_empty()
             && value != "."
             && value != ".."
@@ -132,18 +134,20 @@ mod windows {
         Ok(())
     }
 
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub(crate) struct FileKey {
         pub(crate) volume: u32,
         pub(crate) index: u64,
         pub(crate) created: u64,
     }
 
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
     pub(crate) struct FileStamp {
         pub(crate) key: FileKey,
         pub(crate) size: u64,
         pub(crate) modified: u64,
+        /// Windows ChangeTime 同时捕获属性/名称等变更；审批令牌不能只比较大小/mtime。
+        pub(crate) changed: i64,
         pub(crate) attributes: u32,
         pub(crate) links: u32,
     }
@@ -157,6 +161,12 @@ mod windows {
         if info.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
             return Err("拒绝符号链接、junction、挂载点及其他重解析点".into());
         }
+        let mut basic = FILE_BASIC_INFO::default();
+        // SAFETY: File 与完整初始化的 FILE_BASIC_INFO 输出均在同步调用期间存活。
+        if unsafe { GetFileInformationByHandleEx(file.as_raw_handle().cast(), FileBasicInfo,
+            ptr::from_mut(&mut basic).cast(), size_of::<FILE_BASIC_INFO>() as u32) } == 0 {
+            return Err(io_error("读取文件变更时间失败，不能确认审批身份", io::Error::last_os_error()));
+        }
         let combine = |high: u32, low: u32| (u64::from(high) << 32) | u64::from(low);
         Ok(FileStamp {
             key: FileKey {
@@ -166,6 +176,7 @@ mod windows {
             },
             size: combine(info.nFileSizeHigh, info.nFileSizeLow),
             modified: combine(info.ftLastWriteTime.dwHighDateTime, info.ftLastWriteTime.dwLowDateTime),
+            changed: basic.ChangeTime,
             attributes: info.dwFileAttributes,
             links: info.nNumberOfLinks,
         })
@@ -204,15 +215,17 @@ mod windows {
         path == root || path.strip_prefix(&root).is_some_and(|suffix| suffix.starts_with('\\'))
     }
 
-    fn volume_info(file: &File) -> Result<(u32, u32, String), String> {
+    fn volume_info(file: &File) -> Result<(u32, u32, String, String, u32), String> {
         let mut serial = 0;
         let mut component_length = 0;
         let mut label = [0u16; 261];
+        let mut filesystem = [0u16; 64];
+        let mut flags = 0u32;
         // SAFETY: 所有非空输出指针均指向存活的对应类型/长度缓冲；未请求的字段用空指针。
         let result = unsafe {
             GetVolumeInformationByHandleW(
                 file.as_raw_handle().cast(), label.as_mut_ptr(), label.len() as u32,
-                &mut serial, &mut component_length, ptr::null_mut(), ptr::null_mut(), 0,
+                &mut serial, &mut component_length, &mut flags, filesystem.as_mut_ptr(), filesystem.len() as u32,
             )
         };
         if result == 0 {
@@ -223,7 +236,10 @@ mod windows {
         if component_length == 0 {
             return Err("文件系统未提供可靠的文件名长度限制".into());
         }
-        Ok((serial, component_length, label))
+        let fs_length = filesystem.iter().position(|unit| *unit == 0).unwrap_or(filesystem.len());
+        let filesystem = String::from_utf16(&filesystem[..fs_length]).map_err(|_| "文件系统名称编码无效")?.to_ascii_lowercase();
+        if filesystem.is_empty() || filesystem.contains('|') { return Err("文件系统没有可验证的格式标識".into()); }
+        Ok((serial, component_length, label, filesystem, flags))
     }
 
     fn open_directory(path: &Path) -> Result<File, String> {
@@ -262,6 +278,8 @@ mod windows {
         serial: u32,
         component_length: usize,
         label: String,
+        filesystem: String,
+        volume_flags: u32,
     }
 
     impl DirectoryGuard {
@@ -283,21 +301,23 @@ mod windows {
             local_drive(&mount_root)?;
             let mut at = mount_root.clone();
             let mut nodes = Vec::new();
-            let mut append = |at: &Path| -> Result<(), String> {
+            let mut append = |at: &Path| -> Result<String, String> {
                 let file = open_directory(at)?;
                 let key = file_stamp(&file)?.key;
                 let final_path = final_path(&file)?;
-                nodes.push(HeldDirectory { file, key, final_path });
-                Ok(())
+                nodes.push(HeldDirectory { file, key, final_path: final_path.clone() });
+                Ok(final_path)
             };
-            append(&at)?;
+            let root_final = append(&at)?;
+            // 根句柄取得后，后续祖先/叶目录只从原卷 GUID 解析；盘符仅做后置校验。
+            at = PathBuf::from(root_final);
             for part in text[root_length..].split('\\').filter(|part| !part.is_empty()) {
                 at.push(part);
                 append(&at)?;
             }
             let root = nodes.first().ok_or("目录缺少根句柄")?;
             let leaf = nodes.last().ok_or("目录缺少目标句柄")?;
-            let (serial, component_length, label) = volume_info(&root.file)?;
+            let (serial, component_length, label, filesystem, volume_flags) = volume_info(&root.file)?;
             if serial != root.key.volume || nodes.iter().any(|node| node.key.volume != serial) {
                 return Err("目录链的卷身份不一致，拒绝跨挂载点操作".into());
             }
@@ -309,29 +329,104 @@ mod windows {
             let final_path = leaf.final_path.clone();
             let result = Self {
                 path, final_path, identity, mount_root, nodes, write_anchor: None, serial,
-                component_length: component_length as usize, label,
+                component_length: component_length as usize, label, filesystem, volume_flags,
             };
             result.validate()?;
             Ok(result)
         }
 
         pub(crate) fn for_copy(value: &str) -> Result<Self, String> {
+            Self::for_access(value, FILE_ADD_FILE)
+        }
+
+        pub(crate) fn for_create(value: &str) -> Result<Self, String> {
+            Self::for_access(value, FILE_ADD_SUBDIRECTORY)
+        }
+
+        fn for_access(value: &str, access: u32) -> Result<Self, String> {
             let mut guard = Self::open(value)?;
-            // 浏览不要求写权限。复制额外获取同一目标目录的 FILE_ADD_FILE 句柄，
-            // 既提前拒绝不可写 ACL，也为相对 FileRenameInfo 提供可写目录锚点。
-            let anchor = OpenOptions::new()
-                .access_mode(FILE_READ_ATTRIBUTES | FILE_LIST_DIRECTORY | FILE_ADD_FILE)
-                .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
-                .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
-                .open(&guard.final_path).map_err(|e| io_error("目标目录不可写，不能开始导出", e))?;
-            if file_stamp(&anchor)?.key != *guard.leaf_key()
-                || !same_path(&final_path(&anchor)?, &guard.final_path)
-            {
-                return Err("可写目标句柄与已选择目录身份不一致".into());
-            }
+            let anchor = guard.write_handle(access)?;
             guard.write_anchor = Some(anchor);
             guard.validate()?;
             Ok(guard)
+        }
+
+        fn write_handle(&self, access: u32) -> Result<File, String> {
+            if self.volume_flags & FILE_READ_ONLY_VOLUME != 0 { return Err("该卷为只读介质，不能写入".into()); }
+            // 实际申请目录写访问，不凭本地/可移动标签或文件只读属性猜测 ACL。
+            let anchor = OpenOptions::new()
+                .access_mode(FILE_READ_ATTRIBUTES | FILE_LIST_DIRECTORY | access)
+                .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+                .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
+                .open(&self.final_path).map_err(|e| io_error("目录未授予所需写访问权限", e))?;
+            if file_stamp(&anchor)?.key != *self.leaf_key()
+                || !same_path(&final_path(&anchor)?, &self.final_path)
+            { return Err("可写目录句柄与已选择目录身份不一致".into()); }
+            Ok(anchor)
+        }
+
+        pub(crate) fn writable(&self) -> Result<bool, String> {
+            self.validate()?;
+            match self.write_handle(FILE_ADD_FILE | FILE_ADD_SUBDIRECTORY) {
+                Ok(_) => { self.validate()?; Ok(true) }
+                Err(_) => { self.validate()?; Ok(false) }
+            }
+        }
+
+        pub(crate) fn volume_id(&self) -> Result<String, String> {
+            let root = &self.nodes[0];
+            let volume = crate::devices::normalize_volume_identifier(&root.final_path)?;
+            // SUBST/同卷别名的显示根可能是子目录；卷代际必须取真正 GUID 卷根，
+            // 不能把显示根文件 ID 或盘符隐式变成分区 ID。
+            let key = if same_path(&root.final_path, &volume) { root.key.clone() } else {
+                let file = open_directory(Path::new(&volume))?;
+                let key = file_stamp(&file)?.key;
+                if key.volume != self.serial { return Err("卷根代际与已固定目录不一致".into()); }
+                key
+            };
+            Ok(format!("win-volume-v1|{volume}|{:08x}|{}|{:016x}:{:016x}",
+                self.serial, self.filesystem, key.index, key.created))
+        }
+
+        pub(crate) fn volume_root(&self) -> Result<String, String> {
+            crate::devices::normalize_volume_identifier(&self.nodes[0].final_path)
+        }
+
+        /// 浏览目录身份与作为复制目标打开的同一个 DirectoryGuard 严格一致。
+        pub(crate) fn entry_identity(&self, stamp: &FileStamp, path: &str) -> Result<String, String> {
+            let root = &self.nodes[0];
+            if stamp.key.volume != self.serial { return Err("目录项跨越已固定卷，拒绝返回身份".into()); }
+            if stamp.attributes & FILE_ATTRIBUTE_DIRECTORY != 0 {
+                Ok(format!("win-dir-v1|{:08x}:{:016x}:{:016x}|{:016x}:{:016x}|{}|{}",
+                    self.serial, root.key.index, root.key.created, stamp.key.index, stamp.key.created,
+                    path_key(&root.final_path), path_key(path)))
+            } else {
+                if stamp.key.index == 0 { return Err("文件系统没有提供非空文件身份".into()); }
+                Ok(format!("win-entry-v1|{}|{:08x}:{:016x}:{:016x}|{}:{:016x}:{:016x}:{:08x}:{}|{}",
+                    self.volume_root()?, stamp.key.volume, stamp.key.index, stamp.key.created,
+                    stamp.size, stamp.modified, stamp.changed, stamp.attributes, stamp.links, path_key(path)))
+            }
+        }
+
+        /// 现有目录项允许文件系统原生的 255 字符名；新建/导出仍用保守 name_limit。
+        pub(crate) fn entry_path(&self, name: &str) -> Result<PathBuf, String> {
+            if !valid_component(name) || name.encode_utf16().count() > self.component_length { return Err("目录项名称非法或超过文件系统限制".into()); }
+            let path = PathBuf::from(&self.final_path).join(name);
+            if path.to_string_lossy().encode_utf16().count() > MAX_FINAL_PATH_UNITS { return Err("目录项最终路径过长".into()); }
+            Ok(path)
+        }
+
+        pub(crate) fn open_entry(&self, name: &str, read_data: bool) -> Result<File, io::Error> {
+            let path = self.entry_path(name).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
+            let file = OpenOptions::new().access_mode(FILE_READ_ATTRIBUTES | if read_data { GENERIC_READ } else { 0 })
+                .share_mode(if read_data { FILE_SHARE_READ } else { FILE_SHARE_READ | FILE_SHARE_WRITE })
+                .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS | if read_data { FILE_FLAG_SEQUENTIAL_SCAN } else { 0 })
+                .open(&path)?;
+            let stamp = file_stamp(&file).map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?;
+            if stamp.key.volume != self.serial || !same_path(&final_path(&file).map_err(|_| io::Error::from(io::ErrorKind::InvalidData))?, &path.to_string_lossy()) {
+                return Err(io::Error::from(io::ErrorKind::InvalidData));
+            }
+            Ok(file)
         }
 
         pub(crate) fn file(&self) -> &File {
@@ -356,12 +451,23 @@ mod windows {
             Ok(result)
         }
 
+        pub(crate) fn open_bound_entry(&self, name: &str) -> Result<File, String> {
+            let path = self.entry_path(name)?;
+            let file = OpenOptions::new().access_mode(FILE_READ_ATTRIBUTES | GENERIC_READ | DELETE)
+                .share_mode(FILE_SHARE_READ)
+                .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_SEQUENTIAL_SCAN)
+                .open(&path).map_err(|error| io_error("固定现有目标失败；文件正在写入、待删除或权限不足", error))?;
+            if !same_path(&final_path(&file)?, &path.to_string_lossy()) { return Err("现有目标的句柄路径不匹配".into()); }
+            Ok(file)
+        }
+
         /// 验证保留的句柄与卷代际；外部目标另验证盘符，内部来源只验证 GUID 根。
         pub(crate) fn validate(&self) -> Result<(), String> {
             local_drive(&self.mount_root)?;
             let root = &self.nodes[0];
-            let (serial, component_length, _) = volume_info(&root.file)?;
-            if serial != self.serial || component_length as usize != self.component_length {
+            let (serial, component_length, _, filesystem, flags) = volume_info(&root.file)?;
+            if serial != self.serial || component_length as usize != self.component_length
+                || filesystem != self.filesystem || flags != self.volume_flags {
                 return Err("目标卷代际已变化或设备不可用，复制已停止".into());
             }
             for node in &self.nodes {
@@ -413,6 +519,17 @@ mod windows {
         }
 
         pub(crate) fn validate(&self) -> Result<(), String> { self.guard.validate() }
+
+        pub(crate) fn identity(&self) -> &str { &self.guard.identity }
+        pub(crate) fn volume_root(&self) -> Result<String, String> { self.guard.volume_root() }
+
+        pub(crate) fn reject_mutation(&self, path: &str) -> Result<(), String> {
+            self.validate()?;
+            if at_or_below(path, &self.guard.final_path) || at_or_below(&self.guard.final_path, path) {
+                return Err("不能重命名或回收应用持久目录、内部资料或其祖先目录".into());
+            }
+            Ok(())
+        }
 
         pub(crate) fn reject_target(&self, target: &DirectoryGuard) -> Result<(), String> {
             self.validate()?;
@@ -485,6 +602,96 @@ mod windows {
         }
     }
 
+    pub(crate) fn user_name(name: &str, limit: usize) -> Result<(), String> {
+        if !valid_component(name) || name.encode_utf16().count() > limit
+            || name.to_ascii_lowercase().starts_with(".celesvault-")
+            || matches!(name.to_ascii_lowercase().as_str(), "$recycle.bin" | "system volume information") {
+            return Err("名称必须是安全的单一 Windows 文件名；不能使用保留名称、路径或应用暂存名称".into());
+        }
+        Ok(())
+    }
+
+    /// 用户显式文件管理的来源：固定父链并校验来源快照。
+    /// 重命名拒绝写/删共享；Shell 回收允许 DELETE 共享，否则会妨碍系统自己回收。
+    /// 回收即时重核身份并核实同句柄进入回收站，不宣称恶意同用户并发绝对免疫。
+    pub(crate) struct EntryGuard {
+        pub(crate) file: File,
+        pub(crate) parents: DirectoryGuard,
+        pub(crate) stamp: FileStamp,
+        pub(crate) final_path: String,
+        pub(crate) display_path: PathBuf,
+    }
+
+    impl EntryGuard {
+        pub(crate) fn open(value: &str, identity: &str, rename: bool) -> Result<Self, String> {
+            if identity.is_empty() || identity.len() > 32_768 { return Err("缺少有效目录项身份，请刷新后重试".into()); }
+            let display_path = local_path(value)?;
+            let text = display_path.to_str().ok_or("目录项路径编码无效")?;
+            if text.len() <= 3 { return Err("不能重命名或回收驱动器根目录".into()); }
+            let parent = display_path.parent().and_then(|path| path.to_str()).ok_or("目录项没有安全父目录")?;
+            let parents = if rename { DirectoryGuard::for_access(parent, FILE_ADD_FILE | FILE_ADD_SUBDIRECTORY)? } else { DirectoryGuard::open(parent)? };
+            let name = display_path.file_name().and_then(|name| name.to_str()).ok_or("目录项名称编码无效")?;
+            let path = parents.entry_path(name)?;
+            let file = OpenOptions::new().access_mode(FILE_READ_ATTRIBUTES | GENERIC_READ | DELETE)
+                .share_mode(if rename { FILE_SHARE_READ } else { FILE_SHARE_READ | FILE_SHARE_DELETE })
+                .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS)
+                .open(&path).map_err(|error| io_error("无法固定目录项；权限不足、文件正在写入或待删除", error))?;
+            let stamp = file_stamp(&file)?;
+            let final_path = final_path(&file)?;
+            if !same_path(&final_path, &path.to_string_lossy()) { return Err("目录项最终身份与浏览路径不一致".into()); }
+            if stamp.attributes & FILE_ATTRIBUTE_DIRECTORY == 0 && stamp.links != 1 { return Err("不修改外部硬链接文件".into()); }
+            if parents.entry_identity(&stamp, &final_path)? != identity { return Err("目录项已变化，必须刷新并重新确认，未执行操作".into()); }
+            let entry = Self { file, parents, stamp, final_path, display_path };
+            entry.validate()?;
+            Ok(entry)
+        }
+
+        pub(crate) fn validate(&self) -> Result<(), String> {
+            self.parents.validate()?;
+            if file_stamp(&self.file)? != self.stamp || !same_path(&final_path(&self.file)?, &self.final_path) {
+                return Err("已选择的目录项身份或内容已变化，操作已停止".into());
+            }
+            Ok(())
+        }
+
+        pub(crate) fn rename(&self, name: &str) -> Result<(), String> {
+            user_name(name, self.parents.name_limit())?;
+            self.validate()?;
+            let destination = self.parents.child(name)?;
+            if self.parents.entry_exists(name)? {
+                let existing = self.parents.open_entry(name, false).map_err(|error| io_error("确认重命名目标失败", error))?;
+                if file_stamp(&existing)?.key != self.stamp.key { return Err("重命名目标已存在，不会覆盖已有文件或目录".into()); }
+            }
+            rename_no_replace(&self.file, &self.parents, name).map_err(|error| io_error("按来源句柄重命名失败，未覆盖目标", error))?;
+            let actual = file_stamp(&self.file)?;
+            if actual.key != self.stamp.key || actual.size != self.stamp.size
+                || !same_path(&final_path(&self.file)?, &destination.to_string_lossy()) {
+                return Err("重命名已提交但身份复核失败，请刷新目录；不会再次按名称修改".into());
+            }
+            self.parents.validate()
+        }
+    }
+
+    pub(crate) fn rename_no_replace(file: &File, target: &DirectoryGuard, name: &str) -> Result<(), io::Error> {
+        target.validate().map_err(io::Error::other)?;
+        let destination = target.child(name).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
+        let filename: Vec<u16> = destination.as_os_str().encode_wide().collect();
+        let filename_bytes = filename.len() * size_of::<u16>();
+        let bytes = (offset_of!(FILE_RENAME_INFO, FileName) + filename_bytes).max(size_of::<FILE_RENAME_INFO>());
+        let mut storage = vec![0u64; bytes.div_ceil(size_of::<u64>())];
+        let info = storage.as_mut_ptr().cast::<FILE_RENAME_INFO>();
+        // SAFETY: u64 缓冲覆盖头和全部 UTF-16 尾数组且对齐。Win32 FileRenameInfo
+        // 使用完整卷 GUID 路径和空 RootDirectory；不共享 DELETE 的祖先链全程保持锁定。
+        unsafe {
+            (*info).Anonymous.ReplaceIfExists = false;
+            (*info).RootDirectory = ptr::null_mut();
+            (*info).FileNameLength = filename_bytes as u32;
+            ptr::copy_nonoverlapping(filename.as_ptr(), ptr::addr_of_mut!((*info).FileName).cast::<u16>(), filename.len());
+            if SetFileInformationByHandle(file.as_raw_handle().cast(), FileRenameInfo, info.cast(), bytes as u32) == 0 { return Err(io::Error::last_os_error()); }
+        }
+        Ok(())
+    }
+
     pub(crate) struct ArchiveFile {
         pub(crate) file: File,
         pub(crate) stamp: FileStamp,
@@ -538,6 +745,11 @@ mod windows {
             Ok(())
         }
 
+        /// 仅用于本次已知自有意图/备份记录；保留在磁盘供显式恢复，Drop 不删除。
+        pub(crate) fn preserve(&mut self) { self.active = false; }
+
+        pub(crate) fn key(&self) -> &FileKey { &self.key }
+
         pub(crate) fn cleanup(&mut self) -> Result<(), String> {
             if !self.active { return Ok(()); }
             self.verify()?;
@@ -560,24 +772,7 @@ mod windows {
         pub(crate) fn publish(&mut self, target: &DirectoryGuard, name: &str) -> Result<(), io::Error> {
             target.child(name).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
             self.verify().map_err(|_| io::Error::from(io::ErrorKind::Other))?;
-            let filename: Vec<u16> = name.encode_utf16().collect();
-            let filename_bytes = filename.len() * size_of::<u16>();
-            let bytes = (offset_of!(FILE_RENAME_INFO, FileName) + filename_bytes)
-                .max(size_of::<FILE_RENAME_INFO>());
-            // u64 保证 FILE_RENAME_INFO 在 x86/x64 下都满足对齐；整块缓冲初始化为零。
-            let mut storage = vec![0u64; bytes.div_ceil(size_of::<u64>())];
-            let info = storage.as_mut_ptr().cast::<FILE_RENAME_INFO>();
-            // SAFETY: 分配字节数覆盖头与全部 UTF-16 尾数组，指针对齐，源/目标不重叠。
-            // RootDirectory 的 File 存活到同步 Win32 调用结束，不缓存或转移裸 HANDLE。
-            unsafe {
-                (*info).Anonymous.ReplaceIfExists = false;
-                (*info).RootDirectory = target.file().as_raw_handle().cast();
-                (*info).FileNameLength = filename_bytes as u32;
-                ptr::copy_nonoverlapping(filename.as_ptr(), ptr::addr_of_mut!((*info).FileName).cast::<u16>(), filename.len());
-                if SetFileInformationByHandle(self.file.as_raw_handle().cast(), FileRenameInfo, info.cast(), bytes as u32) == 0 {
-                    return Err(io::Error::last_os_error());
-                }
-            }
+            rename_no_replace(&self.file, target, name)?;
             // 已是正式导出，后续复核失败也不把正式文件当暂存自动删除。
             self.active = false;
             Ok(())
@@ -655,6 +850,36 @@ mod windows {
         let result = format!("{stem}{suffix}{extension}");
         if !valid_component(&result) { return Err("无法生成安全的保留两份文件名".into()); }
         Ok(result)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        #[test]
+        fn rejects_ambiguous_and_reserved_user_names() {
+            for name in ["", ".", "..", "CON", "con.docx", "LPT1", "COM¹.txt", "name.", "name ", "a/b", "a\\b", "x:stream", "a|b"] {
+                assert!(!valid_component(name), "{name}");
+            }
+            assert!(valid_component("语文课件 2026.pptx"));
+            assert!(user_name(".celesvault-export-1.backup", 180).is_err());
+            assert!(user_name("$Recycle.Bin", 180).is_err());
+        }
+        #[test]
+        fn exported_and_conflict_names_preserve_extension() {
+            assert_eq!(safe_name("CON.docx", 180).unwrap(), "_CON.docx");
+            assert_eq!(conflict_name("课件.pptx", 1, 180).unwrap(), "课件 (2).pptx");
+            let long = format!("{}.pdf", "课程".repeat(200));
+            let base = safe_name(&long, 180).unwrap();
+            let second = conflict_name(&base, 999, 180).unwrap();
+            assert!(second.ends_with(".pdf"));
+            assert!(second.encode_utf16().count() <= 180);
+            assert!(valid_component(&second));
+        }
+        #[test]
+        fn path_input_never_accepts_device_unc_or_relative_namespaces() {
+            for path in ["relative", "D:relative", "\\\\server\\share", "\\\\?\\C:\\folder", "D:\\a\\..\\b", "D:\\a:stream", "D:\\\\a"] { assert!(local_path(path).is_err()); }
+            assert_eq!(local_path("e:/课程/课件").unwrap(), PathBuf::from("E:\\课程\\课件"));
+        }
     }
 }
 

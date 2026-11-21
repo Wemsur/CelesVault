@@ -57,7 +57,7 @@ Vite、Vue 插件、TypeScript、PostCSS/Autoprefixer 由宿主已有轻量工�
 
 ## 样式、字体与浮层初始化
 
-**正确样式入口是 `src/vendor/celestial/styles/index.scss`，不是原 assets/omorphia.scss。** 该入口包含 Tailwind directives、原 UI utilities、变量、normalize、classes、defaults（再导入 reset）、accessibility，以及必要 Launcher 全局规则；所有样式导入为本地文件。`tailwind-utilities.scss` 是原 CSS 字节拷贝并改扩展名，以便 Sass 内联，而不是浏览器执行晚到的 CSS @import。
+**正确样式入口是 `src/vendor/celestial/styles/index.scss`，不是原 assets/omorphia.scss。** 入口使用 `@use 'sass:meta'` 与按原顺序的 `meta.load-css`，defaults用 `@use` 加载reset；不再使用弃用的Sass import。它保留Tailwind directives、原UI utilities、变量、normalize、classes、defaults、accessibility及Launcher必要全局规则，全部本地加载。`tailwind-utilities.scss` 是原CSS字节拷贝并改扩展名，以便内联，不发起浏览器CSS import请求。宿主app.scss通过use加载此入口和离线fonts.css。
 
 ```ts
 // tailwind.config.ts

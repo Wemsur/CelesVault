@@ -1,3 +1,6 @@
+export { default as CheckCircleIcon } from './icons/check-circle.svg?component'
+export { default as IssuesIcon } from './icons/issues.svg?component'
+export { default as XCircleIcon } from './icons/x-circle.svg?component'
 export { default as HomeIcon } from './icons/home.svg?component'
 export { default as LibraryIcon } from './icons/library.svg?component'
 export { default as SettingsIcon } from './icons/settings.svg?component'
