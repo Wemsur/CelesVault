@@ -14,7 +14,9 @@ const platform = usePlatform()
 const route = useRoute()
 const windowControlsWidth = ref(0)
 const isHome = computed(() => route.name === 'home')
-function direction(value: 'horizontal' | 'vertical') { vault.persistApp(platform, { homeDirection: value }) }
+const nextDirection = computed(() => vault.config.app.homeDirection === 'horizontal' ? 'vertical' : 'horizontal')
+const directionLabel = computed(() => nextDirection.value === 'vertical' ? '切换为上下分屏' : '切换为左右分屏')
+function toggleDirection() { vault.persistApp(platform, { homeDirection: nextDirection.value }) }
 watch(() => route.name, name => {
 	vault.targetContext = name === 'library' ? 'library' : 'home'
 	if (platform.mode === 'native') {
@@ -30,7 +32,7 @@ watch(() => route.name, name => {
 			<div class="vault-brand" data-tauri-drag-region><span>CelesVault</span></div>
 			<div class="vault-search" data-tauri-drag-region-exclude><GlobalSearch /></div>
 			<span v-if="platform.mode === 'preview'" class="vault-preview-label">浏览器预览</span>
-			<div v-if="isHome" class="vault-direction" data-tauri-drag-region-exclude><IconButton label="左右分屏" :aria-pressed="vault.config.app.homeDirection === 'horizontal'" :type="vault.config.app.homeDirection === 'horizontal' ? 'outlined' : 'quiet'" @click="direction('horizontal')"><SquareSplitHorizontalIcon /></IconButton><IconButton label="上下分屏" :aria-pressed="vault.config.app.homeDirection === 'vertical'" :type="vault.config.app.homeDirection === 'vertical' ? 'outlined' : 'quiet'" @click="direction('vertical')"><SquareSplitHorizontalIcon class="rotate-90" /></IconButton></div>
+			<div v-if="isHome" class="vault-direction" data-tauri-drag-region-exclude><IconButton :label="directionLabel" :title="directionLabel" type="quiet" @click="toggleDirection"><SquareSplitHorizontalIcon :class="{ 'rotate-90': nextDirection === 'vertical' }" /></IconButton></div>
 			<WindowControls @width-change="windowControlsWidth = $event" @window-error="vault.error = `窗口状态读取失败：${String($event)}`" />
 		</header>
 		<nav class="vault-navigation" aria-label="主要导航"><NavButton v-tooltip.right="'主页'" to="/" :is-primary="current => current.path === '/'" aria-label="主页"><HomeIcon /></NavButton><NavButton v-tooltip.right="'库'" to="/library" :is-primary="current => current.path === '/library'" aria-label="库"><LibraryIcon /></NavButton><hr class="vault-navigation-divider" />
