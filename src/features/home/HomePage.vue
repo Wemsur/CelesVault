@@ -44,9 +44,6 @@ function measure(){
 		const rows=Math.max(1,Math.floor((root.clientHeight-chrome)/(tileHeight+.75*rem)))
 		card.style.setProperty('--course-columns',String(Math.min(3,Math.max(1,Math.ceil(Number(card.dataset.fileCount??0)/rows)))))
 	}
-	const first=cards[0];const last=cards[cards.length-1]
-	root.style.setProperty('--course-edge-start',`${Math.max(12,((vertical.value?root.clientWidth:root.clientHeight)-(vertical.value?first?.offsetWidth??0:first?.offsetHeight??0))/2)}px`)
-	root.style.setProperty('--course-edge-end',`${Math.max(12,((vertical.value?root.clientWidth:root.clientHeight)-(vertical.value?last?.offsetWidth??0:last?.offsetHeight??0))/2)}px`)
 	jump(centeredId||currentId.value,false)
 }
 function wheel(event:WheelEvent){

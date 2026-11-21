@@ -9,7 +9,7 @@ export interface RuntimeInfo {
 }
 export interface PlatformClient {
 	readonly mode: 'native' | 'preview'
-	window: { getState(): Promise<WindowState>; minimize(): Promise<void>; toggleMaximize(): Promise<void>; hide(): Promise<void>; onStateChanged(listener: (state: WindowState) => void): Promise<Unlisten> }
+	window: { setScale(percent: number): Promise<void>; getState(): Promise<WindowState>; minimize(): Promise<void>; toggleMaximize(): Promise<void>; hide(): Promise<void>; onStateChanged(listener: (state: WindowState) => void): Promise<Unlisten> }
 	app: { getRuntimeInfo(): Promise<RuntimeInfo> }
 	vault: {
 		status(): Promise<EngineStatus>; chooseRoot(): Promise<EngineStatus | null>; today(): Promise<ArchiveItem[]>

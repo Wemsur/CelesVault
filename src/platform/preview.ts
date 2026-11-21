@@ -9,6 +9,12 @@ export function createPreviewAdapter(): PlatformClient {
 	return {
 		mode: 'preview',
 		window: {
+			async setScale(percent) {
+				if (!Number.isInteger(percent) || percent < 75 || percent > 200) throw new Error('应用缩放应为75–200%的整数')
+				document.documentElement.style.setProperty('zoom', String(percent / 100))
+				document.documentElement.style.setProperty('--vault-preview-scale', String(percent / 100))
+				document.documentElement.classList.add('vault-preview-scaled')
+			},
 			async getState() { return { ...state } },
 			async minimize() { window.dispatchEvent(new CustomEvent('vault:preview-window-action', { detail: '已模拟最小化，浏览器窗口不变。' })) },
 			async toggleMaximize() { state = { ...state, maximized: !state.maximized }; notify(); window.dispatchEvent(new CustomEvent('vault:preview-window-action', { detail: '已模拟最大化状态，不是系统窗口操作。' })) },

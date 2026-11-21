@@ -7,6 +7,7 @@ export function createNativeAdapter(): PlatformClient {
 	return {
 		mode: 'native',
 		window: {
+			setScale: percent => invoke('set_interface_scale', { percent }),
 			getState: () => invoke<WindowState>('window_state'), minimize: () => invoke('minimize_window'),
 			toggleMaximize: () => invoke('toggle_maximize_window'), hide: () => invoke('hide_window'),
 			onStateChanged: listener => listen<WindowState>('vault:window-state', event => listener(event.payload)),

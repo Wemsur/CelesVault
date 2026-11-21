@@ -24,6 +24,7 @@ pub fn run() {
 		.invoke_handler(tauri::generate_handler![
 			commands::runtime_info,
 			commands::window_state,
+			commands::set_interface_scale,
 			commands::minimize_window,
 			commands::toggle_maximize_window,
 			commands::hide_window,

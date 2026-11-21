@@ -23,6 +23,12 @@ pub fn emit_state(window: &WebviewWindow) {
 }
 
 #[tauri::command]
+pub fn set_interface_scale(window: WebviewWindow, percent: u32) -> Result<(), String> {
+	if !(75..=200).contains(&percent) { return Err("应用缩放须为75–200%".into()); }
+	window.set_zoom(f64::from(percent) / 100.0).map_err(|error| format!("应用缩放失败：{error}"))
+}
+
+#[tauri::command]
 pub fn minimize_window(window: WebviewWindow) -> Result<(), String> {
 	window.minimize().map_err(|e| e.to_string())
 }

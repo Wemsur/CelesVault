@@ -11,6 +11,7 @@ import ArchiveDetailModal from '@/components/ArchiveDetailModal.vue'
 import SafeEject from '@/components/SafeEject.vue'
 import BackgroundLayer from '@/features/appearance/BackgroundLayer.vue'
 import { initializeAppearance } from '@/platform/appearance'
+import { applyInterfaceScale, previewScale } from '@/platform/ui-scale'
 import { usePlatform, type Unlisten } from '@/platform'
 import { useShellStore } from '@/stores/shell'
 import { useVaultStore } from '@/stores/vault'
@@ -43,7 +44,7 @@ async function confirmHide() {
 	await platform.window.hide()
 }
 const previewMessage = (event: Event) => { shell.statusMessage = (event as CustomEvent<string>).detail }
-watch(() => vault.config.app.scalePercent, value => { document.documentElement.style.fontSize = `${16 * value / 100}px` }, { immediate: true })
+watch(() => previewScale.value ?? vault.config.app.scalePercent, value => { void applyInterfaceScale(platform, value).catch(reportError) }, { immediate: true })
 onMounted(async () => {
 	window.addEventListener('vault:preview-window-action', previewMessage)
 	try { shell.runtime = await platform.app.getRuntimeInfo() } catch (failure) { reportError(failure) }
