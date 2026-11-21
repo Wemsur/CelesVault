@@ -37,7 +37,8 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .vault-courses.horizontal .vault-course-card { flex: 0 0 var(--course-width, 26rem); width: var(--course-width, 26rem); height: 100%; }
 .vault-course-card.future, .vault-course-card.empty { opacity: .58; }
 .vault-course-card.current { border-color: var(--course-color, var(--color-brand)); }
-.vault-course-files { overflow-y: auto; flex: 1; overscroll-behavior: contain; }
+.vault-course-files { overflow-y: auto; flex: 1; overscroll-behavior-y: auto; touch-action: pan-y; }
+.vault-courses.horizontal .vault-course-files { touch-action: pan-x pan-y; }
 .vault-course-card > header, .vault-course-card > footer, .vault-course-card > p { flex-shrink: 0; }
 .vault-course-card .vault-course-empty { flex: 1; display: grid; place-items: center; }
 @media (prefers-reduced-motion: reduce) { .vault-courses { scroll-behavior: auto; } }
@@ -49,7 +50,7 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .vault-course-empty { color: var(--color-secondary); padding: 1.5rem .5rem; font-size: .875rem; }
 .vault-file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)); gap: .75rem; min-height: 0; align-content: start; }
 .vault-file-grid.list { display: flex; flex-direction: column; gap: .5rem; }
-.vault-file-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: .3rem; padding: .75rem; border-radius: var(--radius-md); cursor: pointer; min-width: 0; background: var(--color-button-bg); user-select: none; -webkit-touch-callout: none; }
+.vault-file-tile { touch-action: none; position: relative; display: flex; flex-direction: column; align-items: center; gap: .3rem; padding: .75rem; border-radius: var(--radius-md); cursor: pointer; min-width: 0; background: var(--color-button-bg); user-select: none; -webkit-touch-callout: none; }
 .vault-file-tile:hover { background: var(--color-button-bg-hover); }
 .vault-file-tile.selected { box-shadow: inset 0 0 0 2px var(--color-brand); background: var(--color-brand-highlight); }
 .vault-file-check { align-self: flex-end; }

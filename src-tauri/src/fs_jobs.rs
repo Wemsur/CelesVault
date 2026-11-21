@@ -405,13 +405,13 @@ mod native {
     use super::*;
     use crate::{devices, path_guard::{
         ArchiveFile, DirectoryGuard, EntryGuard, FileKey, FileStamp, OwnedTemp, ProtectedRoot,
-        conflict_name, file_stamp, final_path, io_error, local_path, rename_no_replace,
+        conflict_name, file_hash, file_stamp, final_path, io_error, local_path, rename_no_replace,
         safe_name, same_path, user_name, wide,
     }};
     use sha2::{Digest, Sha256};
     use std::{
         collections::{HashMap, HashSet}, fs::{self, File, OpenOptions},
-        io::{self, Read, Seek, SeekFrom, Write}, mem::size_of,
+        io::{self, Read, Write}, mem::size_of,
         os::windows::{fs::{MetadataExt, OpenOptionsExt}, io::{AsRawHandle, FromRawHandle, OwnedHandle}},
         panic::{AssertUnwindSafe, catch_unwind}, ptr,
         sync::{atomic::AtomicU64, mpsc::{self, Receiver}},
@@ -448,16 +448,6 @@ mod native {
         format!("export-{:x}-{ticks:x}-{sequence:x}", std::process::id())
     }
     fn hex(bytes: &[u8]) -> String { bytes.iter().map(|byte| format!("{byte:02x}")).collect() }
-    fn file_hash(file: &mut File) -> Result<String, String> {
-        file.seek(SeekFrom::Start(0)).map_err(|error| io_error("定位已固定文件失败", error))?;
-        let mut hash = Sha256::new(); let mut buffer = [0u8; CHUNK_SIZE];
-        loop {
-            let count = file.read(&mut buffer).map_err(|error| io_error("校验已固定文件摘要失败", error))?;
-            if count == 0 { break; } hash.update(&buffer[..count]);
-        }
-        file.seek(SeekFrom::Start(0)).map_err(|error| io_error("复位已固定文件失败", error))?;
-        Ok(hex(&hash.finalize()))
-    }
     fn protected_root(data_root: Option<String>) -> Result<ProtectedRoot, String> {
         ProtectedRoot::open(data_root.as_deref().ok_or("尚未配置持久目录，不能执行文件操作")?)
     }
@@ -655,7 +645,18 @@ mod native {
             let source = supplied.remove(&expected.id).ok_or("审批资料缺失")?;
             if source.display_name != expected.display_name { return Err("归档显示名称在审批后变化，请重新预览".into()); }
             let mut archive = archive_source(&source, &protected, &mut cache)?;
-            if archive.stamp != expected.stamp || !same_path(&final_path(&archive.file)?, &expected.path) || file_hash(&mut archive.file)? != expected.hash || file_stamp(&archive.file)? != expected.stamp { return Err("归档内容或身份在审批后变化，未启动复制".into()); }
+            if archive.stamp != expected.stamp {
+                let difference = if archive.stamp.key != expected.stamp.key { "卷、文件 ID 或创建时间" }
+                    else if archive.stamp.size != expected.stamp.size { "文件大小" }
+                    else if archive.stamp.modified != expected.stamp.modified { "最后写入时间" }
+                    else if archive.stamp.changed != expected.stamp.changed { "变更时间（可能有属性或名称写入）" }
+                    else if archive.stamp.attributes != expected.stamp.attributes { "文件属性" }
+                    else { "硬链接数量" };
+                return Err(format!("归档内容或身份在审批后变化（{difference}），未启动复制"));
+            }
+            if !same_path(&final_path(&archive.file)?, &expected.path) { return Err("归档最终路径在审批后变化，未启动复制".into()); }
+            if file_hash(&mut archive.file)? != expected.hash { return Err("归档 SHA-256 在审批后变化，未启动复制".into()); }
+            if file_stamp(&archive.file)? != expected.stamp { return Err("归档在审批摘要复核期间变化，未启动复制".into()); }
             let decision = decisions.get(&expected.id).copied().unwrap_or(Policy::KeepBoth);
             let mut bound = None;
             if decision == Policy::Replace && expected.existing.is_some() {
@@ -739,6 +740,7 @@ mod native {
         let result = (|| -> Result<bool, Failure> {
             temp.verify()?; target.validate()?;
             let mut buffer = vec![0u8; CHUNK_SIZE]; let mut copied_bytes = 0u64;
+            let mut copied_hash = Sha256::new();
             loop {
                 check_cancel(cancel)?;
                 let count = match source.archive.file.read(&mut buffer) {
@@ -747,6 +749,7 @@ mod native {
                 };
                 if count == 0 { break; }
                 write_chunk(&mut temp.file, &buffer[..count], cancel)?;
+                copied_hash.update(&buffer[..count]);
                 copied_bytes = copied_bytes.checked_add(count as u64).ok_or_else(|| Failure::Error("复制字节计数溢出".into()))?;
                 if copied_bytes > source.archive.stamp.size { return Err("归档大小在复制期间变化".to_string().into()); }
                 publisher.publish(registry, current)?;
@@ -756,8 +759,14 @@ mod native {
             temp.file.flush().map_err(|error| cancelled_io("刷新导出暂存失败", error, cancel))?;
             temp.file.sync_all().map_err(|error| cancelled_io("同步导出暂存失败", error, cancel))?;
             check_cancel(cancel)?; temp.verify()?;
+            let copied_hash = hex(&copied_hash.finalize());
+            let staged_stamp = file_stamp(&temp.file)?;
+            if file_hash(&mut temp.file)? != copied_hash || file_stamp(&temp.file)? != staged_stamp {
+                return Err("导出暂存摘要或元数据与复制内容不一致，未提交".into());
+            }
+            check_cancel(cancel)?;
             if source.policy == Policy::Replace {
-                replace_one(target, protected, source, &mut temp, copied_bytes, cancel, current)?;
+                replace_one(target, protected, source, &mut temp, copied_bytes, &copied_hash, cancel, current)?;
                 return Ok(false);
             }
             for ordinal in 0..MAX_NAME_ATTEMPTS {
@@ -769,7 +778,7 @@ mod native {
                 match temp.publish(target, &name) {
                     Ok(()) => {
                         current.copied += 1;
-                        temp.verify_published(target, &name, copied_bytes)?;
+                        temp.verify_published(target, &name, copied_bytes, &copied_hash)?;
                         temp.file.sync_all().map_err(|error| io_error("已提交导出的磁盘同步失败，请检查设备", error))?;
                         target.validate()?; return Ok(false);
                     }
@@ -836,7 +845,7 @@ mod native {
     fn retained_error(target: &DirectoryGuard, record: &Intent, context: &str) -> String {
         format!("{context}；旧文件保留于 {}（卷 {}），请使用目录恢复操作；不会覆盖原名处的新文件", target.child(&record.held_name).map_or_else(|_| record.held_name.clone(), |path| path.to_string_lossy().into_owned()), record.volume_id)
     }
-    fn replace_one(target: &DirectoryGuard, protected: &ProtectedRoot, source: &mut Source, temp: &mut OwnedTemp, size: u64, cancel: &AtomicBool, current: &mut CopyJob) -> Result<(), Failure> {
+    fn replace_one(target: &DirectoryGuard, protected: &ProtectedRoot, source: &mut Source, temp: &mut OwnedTemp, size: u64, expected_hash: &str, cancel: &AtomicBool, current: &mut CopyJob) -> Result<(), Failure> {
         let old = source.existing.as_mut().ok_or_else(|| Failure::Error("替换缺少已批准旧目标句柄".into()))?;
         check_cancel(cancel)?; target.validate()?; protected.reject_target(target)?;
         if file_stamp(&old.file)? != old.expected.stamp || file_hash(&mut old.file)? != old.expected.hash.clone().unwrap_or_default() || file_stamp(&old.file)? != old.expected.stamp { return Err("已有目标在提交前变化，拒绝替换且不转用保留两份".to_string().into()); }
@@ -861,7 +870,7 @@ mod native {
             protected.reject_target(target)?; temp.verify()?;
             temp.publish(target, &source.name).map_err(|error| io_error("替换提交发生名称冲突或设备错误，不覆盖新来文件", error))?;
             current.copied += 1;
-            temp.verify_published(target, &source.name, size)?;
+            temp.verify_published(target, &source.name, size, expected_hash)?;
             temp.file.sync_all().map_err(|error| io_error("同步新导出失败，旧备份仍保留", error))?;
             target.validate()?; protected.reject_target(target)?; verify_held(&mut old.file, target, &record)?;
             // durable 完成标记先落盘，才按已验证的旧句柄删除本次备份。

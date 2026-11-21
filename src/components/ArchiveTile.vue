@@ -18,21 +18,55 @@ let origin = { x: 0, y: 0 }
 let suppressClick = false
 let touchDrag = false
 let touchOrigin = { x: 0, y: 0 }
+let touchPrevious = { x: 0, y: 0 }
+let touchScrolling = false
+let touchActive = false
+let touchScroller: HTMLElement | null = null
+function finishTouchScroll() {
+	if(touchScroller){touchScroller.style.removeProperty('scroll-snap-type');touchScroller=null}
+}
 function touchStart(event: TouchEvent) {
-	if (event.touches.length !== 1 || props.item.state !== 'available' || (event.target as HTMLElement).closest('button')) return
+	if(event.touches.length!==1){cancelGesture();return}
+	if ((event.target as HTMLElement).closest('button,input,label')) return
 	const touch = event.touches[0]
 	touchOrigin = { x: touch.clientX, y: touch.clientY }
+	touchPrevious = { ...touchOrigin }; touchScrolling = false; touchActive = true; suppressClick=false
 	if (longPress) clearTimeout(longPress)
-	longPress = setTimeout(() => { vault.beginDrag(props.item); touchDrag = true; suppressClick = true; vault.pointerDrag = { ...touchOrigin, count: vault.dragIds.length } }, 450)
+	if(props.item.state==='available')longPress = setTimeout(() => { vault.beginDrag(props.item); touchDrag = true; suppressClick = true; vault.pointerDrag = { ...touchOrigin, count: vault.dragIds.length } }, 450)
 }
 function touchMove(event: TouchEvent) {
 	const touch = event.touches[0]
-	if (!touch) return
-	if (!touchDrag) { if (Math.hypot(touch.clientX - touchOrigin.x, touch.clientY - touchOrigin.y) > 10 && longPress) clearTimeout(longPress); return }
+	if (!touch || !touchActive) return
+	// tile禁止浏览器抢走长按手势；短滑动由这里交给最近的可滚动文件区/课次条。
 	if (event.cancelable) event.preventDefault()
+	if (!touchDrag) {
+		if (!touchScrolling && Math.hypot(touch.clientX-touchOrigin.x,touch.clientY-touchOrigin.y)>10) {
+			touchScrolling=true;suppressClick=true;if(longPress)clearTimeout(longPress)
+		}
+		if(touchScrolling){
+			const node=event.currentTarget as HTMLElement
+			const dx=touchPrevious.x-touch.clientX;const dy=touchPrevious.y-touch.clientY
+			const files=node.closest<HTMLElement>('.vault-course-files')
+			const courses=node.closest<HTMLElement>('.vault-courses')
+			const fileCanScroll=files&&((dy>0&&files.scrollTop+files.clientHeight<files.scrollHeight-1)||(dy<0&&files.scrollTop>0))
+			if(files&&fileCanScroll&&Math.abs(dy)>=Math.abs(dx)) files.scrollTop+=dy
+			else if(courses) {
+				if(!touchScroller){touchScroller=courses;courses.style.scrollSnapType='none'}
+				if(courses.classList.contains('horizontal'))courses.scrollLeft+=dx
+				else courses.scrollTop+=dy
+			} else {
+				let container=node.parentElement
+				while(container&&container.scrollHeight<=container.clientHeight)container=container.parentElement
+				if(container)container.scrollTop+=dy
+			}
+			touchPrevious={x:touch.clientX,y:touch.clientY}
+		}
+		return
+	}
 	vault.pointerDrag = { x: touch.clientX, y: touch.clientY, count: vault.dragIds.length }
 }
 function touchEnd(event: TouchEvent) {
+	touchActive=false;finishTouchScroll()
 	if (longPress) clearTimeout(longPress)
 	if (!touchDrag) return
 	touchDrag = false
@@ -41,7 +75,7 @@ function touchEnd(event: TouchEvent) {
 	const target = touch && document.elementFromPoint(touch.clientX, touch.clientY)?.closest<HTMLElement>('[data-copy-target]')?.dataset.copyTarget
 	if (target) void vault.dropAt(platform, target); else vault.endDrag()
 }
-function cancelGesture() { if (longPress) clearTimeout(longPress); dragging = false; touchDrag = false; vault.endDrag() }
+function cancelGesture() { finishTouchScroll(); if (longPress) clearTimeout(longPress); dragging = false; touchDrag = false; touchActive=false; vault.endDrag() }
 watch(() => [props.item.id,props.item.state] as const, async ([id]) => { image.value = null; if (props.item.state === 'available' && imageTypes.has(props.item.extension)) { try { const result = await archiveThumbnail(platform,id); if (!disposed && props.item.id === id) image.value = result } catch (failure) {vault.error=`缩略图未生成：${String(failure)}`} } }, { immediate: true })
 function select() { if (suppressClick) { suppressClick = false; return } if (!vault.selected.includes(props.item.id)) { vault.clearSelection(); vault.select(props.item, true) } }
 function down(event: PointerEvent) {
@@ -55,22 +89,24 @@ function down(event: PointerEvent) {
 	}, 450)
 }
 function move(event: PointerEvent) {
+	if(event.pointerType!=='pen')return
 	if (!dragging) { if (Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > 10 && longPress) clearTimeout(longPress); return }
 	event.preventDefault(); vault.pointerDrag = { x: event.clientX, y: event.clientY, count: vault.dragIds.length }
 }
 function up(event: PointerEvent) {
+	if(event.pointerType!=='pen')return
 	if (longPress) clearTimeout(longPress)
 	if (!dragging) return
 	dragging = false
 	const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-copy-target]')?.dataset.copyTarget
 	if (target) void vault.dropAt(platform, target); else vault.endDrag()
 }
-function nativeDrag(event: DragEvent) { if (props.item.state !== 'available') { event.preventDefault(); return } suppressClick = true; vault.beginDrag(props.item); if (event.dataTransfer) { event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData('application/x-celesvault-archive', props.item.id) } }
+function nativeDrag(event: DragEvent) { if (touchActive || props.item.state !== 'available') { event.preventDefault(); return } suppressClick = true; vault.beginDrag(props.item); if (event.dataTransfer) { event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData('application/x-celesvault-archive', props.item.id) } }
 async function retry() { if (!props.item.taskId) return; try { await platform.vault.retry(props.item.taskId); await vault.refresh(platform) } catch (error) { vault.error = String(error) } }
-onUnmounted(() => { disposed = true; if (longPress) clearTimeout(longPress) })
+onUnmounted(() => { disposed = true; if(touchDrag||dragging)cancelGesture(); else finishTouchScroll(); if (longPress) clearTimeout(longPress) })
 </script>
 <template>
-	<div class="vault-file-tile" :class="{ selected: vault.selected.includes(item.id), compact }" :draggable="item.state === 'available'" tabindex="0" role="group" :aria-label="item.displayName" @click="select" @dblclick="item.state === 'available' && vault.openArchive(platform,item.id)" @keydown.enter="item.state === 'available' && vault.openArchive(platform,item.id)" @keydown.space.prevent="vault.select(item,!vault.selected.includes(item.id))" @dragstart="nativeDrag" @dragend="vault.endDrag" @pointerdown="down" @pointermove="move" @pointerup="up" @pointercancel="() => { if(dragging) cancelGesture() }" @touchstart="touchStart" @touchmove="touchMove" @touchend="touchEnd" @touchcancel="cancelGesture" @contextmenu.prevent>
+	<div class="vault-file-tile" :class="{ selected: vault.selected.includes(item.id), compact }" :draggable="item.state === 'available'" tabindex="0" role="group" :aria-label="item.displayName" @click="select" @dblclick="item.state === 'available' && vault.openArchive(platform,item.id)" @keydown.enter="item.state === 'available' && vault.openArchive(platform,item.id)" @keydown.space.prevent="vault.select(item,!vault.selected.includes(item.id))" @dragstart="nativeDrag" @dragend="vault.endDrag" @pointerdown="down" @pointermove="move" @pointerup="up" @pointercancel="event => { if(event.pointerType==='pen') cancelGesture() }" @touchstart="touchStart" @touchmove="touchMove" @touchend="touchEnd" @touchcancel="cancelGesture" @contextmenu.prevent>
 		<Checkbox :label="`选择 ${item.displayName}`" label-class="sr-only" class="vault-file-check" :model-value="vault.selected.includes(item.id)" :disabled="item.state !== 'available'" @click.stop @update:model-value="value => vault.select(item,value)" />
 		<img v-if="image" :src="image" class="vault-file-icon" alt="" loading="lazy" />
 		<component v-else :is="imageTypes.has(item.extension) ? FileImageIcon : FileTextIcon" class="vault-file-icon" />

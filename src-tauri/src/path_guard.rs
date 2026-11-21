@@ -10,9 +10,10 @@
 #[cfg(windows)]
 mod windows {
     use serde::{Deserialize, Serialize};
+    use sha2::{Digest, Sha256};
     use std::{
         fs::{self, File, OpenOptions},
-        io,
+        io::{self, Read, Seek, SeekFrom},
         mem::{offset_of, size_of},
         os::windows::{ffi::OsStrExt, fs::{MetadataExt, OpenOptionsExt}, io::AsRawHandle},
         path::{Path, PathBuf},
@@ -180,6 +181,20 @@ mod windows {
             attributes: info.dwFileAttributes,
             links: info.nNumberOfLinks,
         })
+    }
+
+    /// 总是校验整个文件并复位到开头；调用方另核验摘要读取前后的完整 stamp。
+    pub(crate) fn file_hash(file: &mut File) -> Result<String, String> {
+        file.seek(SeekFrom::Start(0)).map_err(|error| io_error("定位已固定文件失败", error))?;
+        let mut hash = Sha256::new();
+        let mut buffer = [0u8; 64 * 1024];
+        loop {
+            let count = file.read(&mut buffer).map_err(|error| io_error("校验已固定文件摘要失败", error))?;
+            if count == 0 { break; }
+            hash.update(&buffer[..count]);
+        }
+        file.seek(SeekFrom::Start(0)).map_err(|error| io_error("复位已固定文件失败", error))?;
+        Ok(hash.finalize().iter().map(|byte| format!("{byte:02x}")).collect())
     }
 
     pub(crate) fn final_path(file: &File) -> Result<String, String> {
@@ -702,6 +717,7 @@ mod windows {
         pub(crate) file: File,
         key: FileKey,
         original_path: String,
+        published_path: Option<String>,
         active: bool,
     }
 
@@ -723,7 +739,7 @@ mod windows {
                 }
             };
             let mut result = Self {
-                file, key: stamp.key, original_path: path.to_string_lossy().into_owned(), active: true,
+                file, key: stamp.key, original_path: path.to_string_lossy().into_owned(), published_path: None, active: true,
             };
             if stamp.attributes & FILE_ATTRIBUTE_DIRECTORY != 0 || stamp.links != 1
                 || result.verify().is_err()
@@ -770,23 +786,35 @@ mod windows {
 
         /// 相对名称 + 已 pin 的目标目录句柄，严格不替换。失败时没有路径式 fallback。
         pub(crate) fn publish(&mut self, target: &DirectoryGuard, name: &str) -> Result<(), io::Error> {
-            target.child(name).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
+            let destination = target.child(name).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
             self.verify().map_err(|_| io::Error::from(io::ErrorKind::Other))?;
             rename_no_replace(&self.file, target, name)?;
             // 已是正式导出，后续复核失败也不把正式文件当暂存自动删除。
             self.active = false;
+            self.published_path = Some(destination.to_string_lossy().into_owned());
             Ok(())
         }
 
-        pub(crate) fn verify_published(&self, target: &DirectoryGuard, name: &str, expected_size: u64) -> Result<(), String> {
+        pub(crate) fn verify_published(&mut self, target: &DirectoryGuard, name: &str, expected_size: u64, expected_hash: &str) -> Result<(), String> {
             let stamp = file_stamp(&self.file)?;
             let destination = target.child(name)?;
-            if stamp.key != self.key || stamp.size != expected_size || stamp.links != 1
-                || !same_path(&final_path(&self.file)?, destination.to_str().ok_or("导出最终路径无效")?)
+            let destination = destination.to_str().ok_or("导出最终路径无效")?;
+            // FAT/exFAT 的文件 ID 可能依赖目录项位置，改名时可变；创建时间也不能
+            // 假定跨发布缓存/落盘精度不变。身份连续性来自本次成功按句柄 rename、
+            // 始终持有且拒绝写/删共享的同一个 File，而非重开路径后只比较大小。
+            // 此例外只用于自有提交边界；审批/暂存阶段仍比较完整 FileKey/Stamp。
+            if self.active || !self.published_path.as_deref().is_some_and(|path| same_path(path, destination))
+                || stamp.key.volume != self.key.volume || stamp.key.index == 0
+                || stamp.size != expected_size || stamp.links != 1
+                || stamp.attributes & FILE_ATTRIBUTE_DIRECTORY != 0
+                || !same_path(&final_path(&self.file)?, destination)
             {
                 return Err("文件已提交，但最终导出身份或大小复核失败，请检查目标设备".into());
             }
-            Ok(())
+            if file_hash(&mut self.file)? != expected_hash || file_stamp(&self.file)? != stamp {
+                return Err("文件已提交，但最终导出摘要或元数据复核失败，请检查目标设备".into());
+            }
+            target.validate()
         }
     }
 
@@ -855,6 +883,87 @@ mod windows {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        struct TestDirectory(PathBuf);
+        impl TestDirectory {
+            fn new() -> Self {
+                let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+                let path = std::env::temp_dir().join(format!("celesvault-path-guard-{}-{nonce}", std::process::id()));
+                fs::create_dir(&path).unwrap();
+                Self(path)
+            }
+            fn guard(&self) -> DirectoryGuard { DirectoryGuard::for_copy(self.0.to_str().unwrap()).unwrap() }
+        }
+        impl Drop for TestDirectory {
+            fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); }
+        }
+
+        #[test]
+        fn hash_reads_whole_file_and_resets_cursor_for_copy() {
+            use std::io::Write;
+            let directory = TestDirectory::new();
+            let guard = directory.guard();
+            let mut temp = OwnedTemp::create(&guard, ".celesvault-hash.tmp").unwrap();
+            temp.file.write_all(b"abc").unwrap();
+            temp.file.seek(SeekFrom::Start(2)).unwrap();
+            let expected = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+            assert_eq!(file_hash(&mut temp.file).unwrap(), expected);
+            assert_eq!(temp.file.stream_position().unwrap(), 0);
+            let mut bytes = Vec::new();
+            temp.file.read_to_end(&mut bytes).unwrap();
+            assert_eq!(bytes, b"abc");
+            assert_eq!(file_hash(&mut temp.file).unwrap(), expected);
+            assert_eq!(temp.file.stream_position().unwrap(), 0);
+            temp.cleanup().unwrap();
+        }
+
+        #[test]
+        fn published_handle_allows_rename_key_transition_but_requires_digest_and_path() {
+            use std::io::Write;
+            let directory = TestDirectory::new();
+            let guard = directory.guard();
+            let mut temp = OwnedTemp::create(&guard, ".celesvault-long-staging-name.tmp").unwrap();
+            temp.file.write_all(b"abc").unwrap();
+            temp.file.sync_all().unwrap();
+            let digest = file_hash(&mut temp.file).unwrap();
+            // 暂存阶段仍拒绝 key 不同，不能把发布边界的规则用于普通重开。
+            let original_key = temp.key.clone();
+            temp.key.index ^= 1;
+            assert!(temp.verify().is_err());
+            temp.key = original_key;
+            assert!(temp.verify_published(&guard, "a.txt", 3, &digest).is_err());
+            temp.publish(&guard, "a.txt").unwrap();
+            // 在 NTFS 测试机也明确覆盖 FAT/exFAT 改名后的 ID/创建时间变化分支。
+            temp.key.index ^= 1;
+            temp.key.created ^= 1;
+            temp.verify_published(&guard, "a.txt", 3, &digest).unwrap();
+            assert!(temp.verify_published(&guard, "b.txt", 3, &digest).is_err());
+            let same_size_wrong_digest = format!("{:x}", Sha256::digest(b"xyz"));
+            assert!(temp.verify_published(&guard, "a.txt", 3, &same_size_wrong_digest).is_err());
+            assert!(temp.verify_published(&guard, "a.txt", 4, &digest).is_err());
+            temp.key.volume ^= 1;
+            assert!(temp.verify_published(&guard, "a.txt", 3, &digest).is_err());
+        }
+
+        #[test]
+        fn three_successive_publications_keep_target_valid() {
+            use std::io::Write;
+            let directory = TestDirectory::new();
+            let guard = directory.guard();
+            for index in 0..3 {
+                let mut temp = OwnedTemp::create(&guard, &format!(".celesvault-batch-{index}.tmp")).unwrap();
+                let bytes = format!("课程资料 {index}").into_bytes();
+                temp.file.write_all(&bytes).unwrap();
+                temp.file.sync_all().unwrap();
+                let digest = file_hash(&mut temp.file).unwrap();
+                let name = format!("资料-{index}.txt");
+                temp.publish(&guard, &name).unwrap();
+                temp.verify_published(&guard, &name, bytes.len() as u64, &digest).unwrap();
+                guard.validate().unwrap();
+            }
+            assert_eq!(fs::read_dir(&guard.final_path).unwrap().count(), 3);
+        }
+
         #[test]
         fn rejects_ambiguous_and_reserved_user_names() {
             for name in ["", ".", "..", "CON", "con.docx", "LPT1", "COM¹.txt", "name.", "name ", "a/b", "a\\b", "x:stream", "a|b"] {
