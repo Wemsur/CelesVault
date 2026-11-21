@@ -301,27 +301,36 @@ pub fn readonly_handle(file:&File)->Result<(),String> {
     file.set_permissions(permissions).map_err(|e| fail("保护归档副本失败", e))
 }
 
+fn rename_information(destination:&Path)->Result<(Vec<u64>,u32),String> {
+    let units:Vec<u16>=destination.as_os_str().encode_wide().chain(Some(0)).collect();
+    if units.len()<=1 || units[..units.len()-1].contains(&0) {return Err("归档发布路径为空或含NUL".into());}
+    let name_bytes=(units.len()-1).checked_mul(2).ok_or("归档发布名称过长")?;
+    let tail_bytes=units.len().checked_mul(2).ok_or("归档发布名称过长")?;
+    let base=std::mem::offset_of!(FILE_RENAME_INFO,FileName);
+    let bytes=base.checked_add(tail_bytes).ok_or("归档发布缓冲过长")?.max(std::mem::size_of::<FILE_RENAME_INFO>());
+    let buffer_size=u32::try_from(bytes).map_err(|_|"归档发布缓冲过长")?;
+    let name_length=u32::try_from(name_bytes).map_err(|_|"归档发布名称过长")?;
+    let mut buffer=vec![0u64;bytes.div_ceil(8)];
+    let header=buffer.as_mut_ptr().cast::<FILE_RENAME_INFO>();
+    // FileNameLength不含终止符，尾部则显式复制UTF-16 NUL，不能靠分配对齐补零。
+    unsafe {
+        (*header).Anonymous.ReplaceIfExists=false;
+        (*header).RootDirectory=std::ptr::null_mut();
+        (*header).FileNameLength=name_length;
+        std::ptr::copy_nonoverlapping(units.as_ptr(),buffer.as_mut_ptr().cast::<u8>().add(base).cast::<u16>(),units.len());
+    }
+    Ok((buffer,buffer_size))
+}
+
 pub fn publish_handle(file:&File,directory:&DirectoryGuard,name:&str)->Result<PathBuf,String> {
     ensure_single_link(file)?;
     if name.is_empty() || name.contains(['\\','/']) {return Err("发布文件名必须是单一安全组件".into());}
     directory.validate()?;
     let target=trusted_path(&directory.path.join(name))?;
-    let units:Vec<u16>=target.as_os_str().encode_wide().collect();
-    let base=std::mem::offset_of!(FILE_RENAME_INFO,FileName);
-    let bytes=base+units.len()*2;
-    let mut buffer=vec![0u64;bytes.max(std::mem::size_of::<FILE_RENAME_INFO>()).div_ceil(8)];
-    // u64 buffer 为 FILE_RENAME_INFO 保证对齐并含完整变长 UTF-16 尾部。
-    // Win32 FileRenameInfo 使用完整卷 GUID 路径和空 RootDirectory；不能传目录句柄/相对名。
-    // 目录祖先链保持锁定，源句柄不关闭/重开，且不替换已存在目标。
-    unsafe {
-        let header=&mut *buffer.as_mut_ptr().cast::<FILE_RENAME_INFO>();
-        header.Anonymous.ReplaceIfExists=false;
-        header.RootDirectory=std::ptr::null_mut();
-        header.FileNameLength=(units.len()*2) as u32;
-        std::ptr::copy_nonoverlapping(units.as_ptr(),buffer.as_mut_ptr().cast::<u8>().add(base).cast::<u16>(),units.len());
-        if SetFileInformationByHandle(file.as_raw_handle().cast(),FileRenameInfo,buffer.as_ptr().cast(),bytes.max(std::mem::size_of::<FILE_RENAME_INFO>()) as u32)==0 {
-            return Err(fail("按自有句柄发布归档失败（不覆盖）",io::Error::last_os_error()));
-        }
+    let (buffer,bytes)=rename_information(&target)?;
+    // 目录祖先链保持锁定，源句柄不关闭/重开，不替换已存在目标。
+    if unsafe {SetFileInformationByHandle(file.as_raw_handle().cast(),FileRenameInfo,buffer.as_ptr().cast(),bytes)}==0 {
+        return Err(fail("按自有句柄发布归档失败（不覆盖）",io::Error::last_os_error()));
     }
     file.sync_all().map_err(|e|fail("同步已发布归档失败",e))?;
     Ok(target)
@@ -372,6 +381,25 @@ pub fn safe_filename(name: &str) -> String {
 mod publish_tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn archive_rename_buffer_keeps_a_terminator_after_the_exact_name() {
+        for extra in 0..8 {
+            let path=PathBuf::from(format!("C:\\资料\\{}22 (2).png","测".repeat(extra)));
+            let units:Vec<u16>=path.as_os_str().encode_wide().collect();
+            let (buffer,bytes)=rename_information(&path).unwrap();
+            let base=std::mem::offset_of!(FILE_RENAME_INFO,FileName);
+            assert!(bytes as usize>=base+(units.len()+1)*2);
+            assert!(buffer.len()*8>=bytes as usize);
+            let header=unsafe {&*buffer.as_ptr().cast::<FILE_RENAME_INFO>()};
+            assert!(header.RootDirectory.is_null());
+            assert_eq!(header.FileNameLength as usize,units.len()*2);
+            let tail=unsafe {std::slice::from_raw_parts(buffer.as_ptr().cast::<u8>().add(base).cast::<u16>(),units.len()+1)};
+            assert_eq!(&tail[..units.len()],units.as_slice());
+            assert_eq!(tail[units.len()],0);
+        }
+        assert!(rename_information(Path::new("C:\\bad\0name.png")).is_err());
+    }
 
     #[test]
     fn publishes_unicode_name_across_directories_without_replacing_existing_file() {

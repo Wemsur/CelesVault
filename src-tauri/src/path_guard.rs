@@ -703,23 +703,35 @@ mod windows {
         }
     }
 
-    pub(crate) fn rename_no_replace(file: &File, target: &DirectoryGuard, name: &str) -> Result<(), io::Error> {
-        target.validate().map_err(io::Error::other)?;
-        let destination = target.child(name).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
-        let filename: Vec<u16> = destination.as_os_str().encode_wide().collect();
-        let filename_bytes = filename.len() * size_of::<u16>();
-        let bytes = (offset_of!(FILE_RENAME_INFO, FileName) + filename_bytes).max(size_of::<FILE_RENAME_INFO>());
+    fn rename_information(destination: &Path) -> io::Result<(Vec<u64>, u32)> {
+        // FileNameLength不含终止符，但变长缓冲必须显式包含UTF-16 NUL。
+        // 不能依赖u64对齐留下的零填充：某些长度会恰好用尽整个分配。
+        let filename: Vec<u16> = destination.as_os_str().encode_wide().chain(Some(0)).collect();
+        if filename.len() <= 1 || filename[..filename.len() - 1].contains(&0) { return Err(io::ErrorKind::InvalidInput.into()); }
+        let filename_bytes = (filename.len() - 1).checked_mul(size_of::<u16>()).ok_or(io::ErrorKind::InvalidInput)?;
+        let tail_bytes = filename.len().checked_mul(size_of::<u16>()).ok_or(io::ErrorKind::InvalidInput)?;
+        let bytes = offset_of!(FILE_RENAME_INFO, FileName).checked_add(tail_bytes).ok_or(io::ErrorKind::InvalidInput)?.max(size_of::<FILE_RENAME_INFO>());
+        let buffer_size = u32::try_from(bytes).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
+        let name_length = u32::try_from(filename_bytes).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
         let mut storage = vec![0u64; bytes.div_ceil(size_of::<u64>())];
         let info = storage.as_mut_ptr().cast::<FILE_RENAME_INFO>();
-        // SAFETY: u64 缓冲覆盖头和全部 UTF-16 尾数组且对齐。Win32 FileRenameInfo
-        // 使用完整卷 GUID 路径和空 RootDirectory；不共享 DELETE 的祖先链全程保持锁定。
+        // SAFETY: 按u64对齐，缓冲覆盖完整头、全部UTF-16字符及显式终止符。
         unsafe {
             (*info).Anonymous.ReplaceIfExists = false;
             (*info).RootDirectory = ptr::null_mut();
-            (*info).FileNameLength = filename_bytes as u32;
-            ptr::copy_nonoverlapping(filename.as_ptr(), ptr::addr_of_mut!((*info).FileName).cast::<u16>(), filename.len());
-            if SetFileInformationByHandle(file.as_raw_handle().cast(), FileRenameInfo, info.cast(), bytes as u32) == 0 { return Err(io::Error::last_os_error()); }
+            (*info).FileNameLength = name_length;
+            let tail = storage.as_mut_ptr().cast::<u8>().add(offset_of!(FILE_RENAME_INFO, FileName)).cast::<u16>();
+            ptr::copy_nonoverlapping(filename.as_ptr(), tail, filename.len());
         }
+        Ok((storage, buffer_size))
+    }
+
+    pub(crate) fn rename_no_replace(file: &File, target: &DirectoryGuard, name: &str) -> Result<(), io::Error> {
+        target.validate().map_err(io::Error::other)?;
+        let destination = target.child(name).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))?;
+        let (storage, bytes) = rename_information(&destination)?;
+        // 源和目录祖先句柄保持存活；完整卷GUID路径，不覆盖、不按路径重开来源。
+        if unsafe { SetFileInformationByHandle(file.as_raw_handle().cast(), FileRenameInfo, storage.as_ptr().cast(), bytes) } == 0 { return Err(io::Error::last_os_error()); }
         Ok(())
     }
 
@@ -913,6 +925,55 @@ mod windows {
         }
         impl Drop for TestDirectory {
             fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); }
+        }
+
+        #[test]
+        fn rename_buffer_has_explicit_utf16_terminator_for_every_alignment() {
+            for extra in 0..8 {
+                let destination=PathBuf::from(format!(r"\\?\Volume{{12345678-1234-1234-1234-123456789abc}}\资料\{}22 (2).png", "测".repeat(extra)));
+                let expected:Vec<u16>=destination.as_os_str().encode_wide().collect();
+                let (storage,bytes)=rename_information(&destination).unwrap();
+                let base=offset_of!(FILE_RENAME_INFO,FileName);
+                assert!(bytes as usize >= base+(expected.len()+1)*2);
+                assert!(storage.len()*size_of::<u64>() >= bytes as usize);
+                let header=unsafe {&*storage.as_ptr().cast::<FILE_RENAME_INFO>()};
+                assert!(header.RootDirectory.is_null());
+                assert_eq!(header.FileNameLength as usize,expected.len()*2);
+                assert!(!unsafe {header.Anonymous.ReplaceIfExists});
+                let tail=unsafe {std::slice::from_raw_parts(storage.as_ptr().cast::<u8>().add(base).cast::<u16>(),expected.len()+1)};
+                assert_eq!(&tail[..expected.len()],expected.as_slice());
+                assert_eq!(tail[expected.len()],0);
+            }
+            // 代理对仍按UTF-16字节数计长，而不是UTF-8长度或Unicode字符数。
+            let destination=PathBuf::from("C:\\资料\\课件😀 (2).png");
+            let expected:Vec<u16>=destination.as_os_str().encode_wide().collect();
+            let (storage,_)=rename_information(&destination).unwrap();
+            let header=unsafe {&*storage.as_ptr().cast::<FILE_RENAME_INFO>()};
+            assert_eq!(header.FileNameLength as usize,expected.len()*2);
+            assert!(rename_information(Path::new("C:\\a\0b.png")).is_err());
+        }
+
+        #[test]
+        fn repeated_conflict_names_are_exact_without_trailing_characters() {
+            use std::io::Write;
+            let directory=TestDirectory::new();
+            let guard=directory.guard();
+            let mut expected=std::collections::HashSet::new();
+            for padding in 0..8 {
+                let base=format!("{}22.png","测".repeat(padding));
+                for ordinal in 0..3 {
+                    let name=conflict_name(&base,ordinal,guard.name_limit()).unwrap();
+                    let mut temp=OwnedTemp::create(&guard,&format!(".celesvault-name-{padding}-{ordinal}.tmp")).unwrap();
+                    temp.file.write_all(b"same content").unwrap();temp.file.sync_all().unwrap();
+                    let digest=file_hash(&mut temp.file).unwrap();
+                    temp.publish(&guard,&name).unwrap();
+                    temp.verify_published(&guard,&name,12,&digest).unwrap();
+                    expected.insert(name);
+                }
+            }
+            let actual:std::collections::HashSet<_>=fs::read_dir(&guard.final_path).unwrap().map(|entry|entry.unwrap().file_name().into_string().unwrap()).collect();
+            assert_eq!(actual,expected);
+            assert!(actual.contains("22 (2).png"));
         }
 
         #[test]
