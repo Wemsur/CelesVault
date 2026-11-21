@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 pub const MAX_SUBJECTS: usize = 256;
 pub const MAX_SLOTS: usize = 128;
 pub const MAX_IMPORT_BYTES: usize = 1024 * 1024;
-const CSV_HEADER: [&str; 10] = ["kind", "id", "name", "start", "end", "isClass", "weekday", "slotId", "subjectId", "enabled"];
+const CSV_HEADER: [&str; 11] = ["kind", "id", "name", "start", "end", "isClass", "weekday", "slotId", "subjectId", "enabled", "color"];
 
 pub fn parse_date(value: &str) -> Result<NaiveDate, String> {
     if value.len() != 10 || value.as_bytes()[4] != b'-' || value.as_bytes()[7] != b'-'
@@ -37,6 +37,10 @@ pub fn validate_timetable(mut timetable: Timetable) -> Result<Timetable, String>
         crate::config::identifier(&subject.id, "科目 ID")?;
         crate::config::text(&subject.name, "科目名称", 128, false)?;
         subject.name = subject.name.trim().to_owned();
+        if let Some(color)=&mut subject.color {
+            if color.len()!=7 || !color.starts_with('#') || !color.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit) { return Err("科目颜色须为 #RRGGBB".into()); }
+            *color=color.to_ascii_lowercase();
+        }
         if !subjects.insert(subject.id.clone()) || !names.insert(subject.name.to_lowercase()) { return Err("科目 ID 或名称重复".into()); }
     }
     let mut slots = HashMap::new(); let mut previous_end = 0;
@@ -139,7 +143,8 @@ fn import_csv(text: &str) -> Result<Timetable, String> {
     let mut reader = csv::ReaderBuilder::new().has_headers(true).flexible(false)
         .from_reader(text.trim_start_matches('\u{feff}').as_bytes());
     let headers = reader.headers().map_err(|e| format!("CSV 表头无效：{e}"))?;
-    if headers.iter().ne(CSV_HEADER) { return Err(format!("CSV 表头须精确为 {}", CSV_HEADER.join(","))); }
+    let has_color=headers.len()==11;
+    if headers.iter().ne(CSV_HEADER) && headers.iter().ne(CSV_HEADER[..10].iter().copied()) { return Err(format!("CSV 表头须精确为 {}", CSV_HEADER.join(","))); }
     let mut result = Timetable::default();
     for (index, row) in reader.records().enumerate() {
         if index >= 2048 { return Err("CSV 超过 2048 行上限".into()); }
@@ -152,10 +157,11 @@ fn import_csv(text: &str) -> Result<Timetable, String> {
             if columns.iter().any(|i| !row[*i].is_empty()) { return Err(format!("CSV 第 {} 行包含此 kind 不适用的字段", index + 2)); }
             Ok(())
         };
+        if has_color && &row[0]!="subject" && !row[10].is_empty() {return Err("只有subject行可以指定颜色".into());}
         match &row[0] {
             "subject" => {
                 empty_columns(&[3, 4, 5, 6, 7, 8, 9])?;
-                result.subjects.push(Subject { id: row[1].to_owned(), name: row[2].to_owned() });
+                result.subjects.push(Subject { id: row[1].to_owned(), name: row[2].to_owned(), color: if has_color && !row[10].is_empty() {Some(row[10].to_owned())} else {None} });
             }
             "slot" => {
                 empty_columns(&[6, 7, 8, 9])?;
@@ -179,9 +185,9 @@ pub fn export_timetable(timetable: &Timetable, format: &str) -> Result<String, S
         "csv" => {
             let mut writer = csv::Writer::from_writer(Vec::new());
             writer.write_record(CSV_HEADER).map_err(|e| e.to_string())?;
-            for s in &timetable.subjects { writer.write_record(["subject", &s.id, &s.name, "", "", "", "", "", "", ""]).map_err(|e| e.to_string())?; }
-            for s in &timetable.slots { writer.write_record(["slot", &s.id, &s.label, &s.start, &s.end, if s.is_class {"true"} else {"false"}, "", "", "", ""]).map_err(|e| e.to_string())?; }
-            for l in &timetable.lessons { writer.write_record(["lesson", "", "", "", "", "", &l.weekday.to_string(), &l.slot_id, &l.subject_id, if l.enabled {"true"} else {"false"}]).map_err(|e| e.to_string())?; }
+            for s in &timetable.subjects { writer.write_record(["subject", &s.id, &s.name, "", "", "", "", "", "", "", s.color.as_deref().unwrap_or("")]).map_err(|e| e.to_string())?; }
+            for s in &timetable.slots { writer.write_record(["slot", &s.id, &s.label, &s.start, &s.end, if s.is_class {"true"} else {"false"}, "", "", "", "", ""]).map_err(|e| e.to_string())?; }
+            for l in &timetable.lessons { writer.write_record(["lesson", "", "", "", "", "", &l.weekday.to_string(), &l.slot_id, &l.subject_id, if l.enabled {"true"} else {"false"}, ""]).map_err(|e| e.to_string())?; }
             let bytes = writer.into_inner().map_err(|e| e.to_string())?;
             String::from_utf8(bytes).map_err(|e| e.to_string())
         }
@@ -194,7 +200,7 @@ mod tests {
     use super::*;
     fn timetable() -> Timetable {
         Timetable {
-            subjects: vec![Subject {id:"math".into(),name:"数学".into()}],
+            subjects: vec![Subject {id:"math".into(),name:"数学".into(),color:None}],
             slots: vec![TimeSlot {id:"one".into(),label:"第一节".into(),start:"08:00".into(),end:"08:40".into(),is_class:true},
                 TimeSlot {id:"break".into(),label:"课间".into(),start:"08:40".into(),end:"08:50".into(),is_class:false},
                 TimeSlot {id:"two".into(),label:"第二节".into(),start:"08:50".into(),end:"09:30".into(),is_class:true}],
@@ -234,6 +240,18 @@ mod tests {
         assert_eq!(classify_course(&courses,"2026-11-17",first.start_unix_ms),None);
         courses[1].enabled=false;
         assert_eq!(classify_course(&courses,&first.date,first.end_unix_ms),None);
+    }
+    #[test]
+    fn colors_roundtrip_and_old_formats_remain_accepted() {
+        let mut t=timetable(); t.subjects[0].color=Some("#AABBCC".into());
+        let t=validate_timetable(t).unwrap();
+        assert_eq!(t.subjects[0].color.as_deref(),Some("#aabbcc"));
+        for format in ["csv","json"] {assert_eq!(import_timetable(&export_timetable(&t,format).unwrap(),format).unwrap(),t);}
+        let old="kind,id,name,start,end,isClass,weekday,slotId,subjectId,enabled\nsubject,math,数学,,,,,,,\n";
+        assert!(import_timetable(old,"csv").unwrap().subjects[0].color.is_none());
+        let old_json=r##"{"subjects":[{"id":"math","name":"数学"}],"slots":[],"lessons":[]}"##;
+        assert!(import_timetable(old_json,"json").unwrap().subjects[0].color.is_none());
+        let mut invalid=t.clone();invalid.subjects[0].color=Some("red".into());assert!(validate_timetable(invalid).is_err());
     }
     #[test]
     fn csv_and_json_round_trip_with_no_fake_rows() {

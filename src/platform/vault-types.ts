@@ -31,7 +31,7 @@ export interface CaptureSettings {
 	excludedPaths: string[]
 	excludedSubjectIds: string[]
 }
-export interface Subject { id: string; name: string }
+export interface Subject { id: string; name: string; color?: string | null }
 export interface TimeSlot { id: string; label: string; start: string; end: string; isClass: boolean }
 export interface WeekLesson { weekday: number; slotId: string; subjectId: string; enabled: boolean }
 export interface Timetable { subjects: Subject[]; slots: TimeSlot[]; lessons: WeekLesson[] }

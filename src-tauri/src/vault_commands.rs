@@ -68,7 +68,7 @@ pub async fn restart_monitoring(app: tauri::AppHandle) -> Result<EngineStatus, S
 		let services = app.state::<Services>();
 		let _mutation = services.mutation.lock().map_err(|_| "监测操作锁不可用")?;
 		require_live(&services)?;
-		let status = services.engine.restart_monitoring()?;
+		let status = services.engine.cleanup_and_restart_monitoring(crate::monitoring_cleanup::terminate_other_instances)?;
 		*services.startup_error.lock().map_err(|_| "状态锁不可用")? = None;
 		Ok(status)
 	}).await

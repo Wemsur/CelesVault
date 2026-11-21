@@ -5,7 +5,7 @@
 - 入口：`pnpm run web:dev` 为仅前端，`pnpm run app:dev` 为用户运行的完整开发。
 - 全中文；不引入 i18n、语言包、翻译 Provider、语言设置或单语言翻译壳。
 - Celestial Launcher 原组件、customdark 色相 38 与用户截图为最高视觉基准。复制必要源文件，不用自制近似组件替代；来源与适配记录到 `docs/component-provenance.md`。
-- 已验证阶段可本地提交。**所有新提交禁止 Co-Authored-By**；原诊断历史保留原作者、时间、消息。推送、PR、发布需用户明确授权。
+- 2026-11-21用户要求：每次完成修改后直接本地提交，无需再等待提交指令；未运行的构建/测试及Native/CI验收必须如实标记，不将提交视为验证通过。**所有新提交禁止 Co-Authored-By**；原诊断历史保留原作者、时间、消息。推送、PR、发布仍需用户明确授权。
 - 此目录已独立 Git。上层 `github-project` 仍有其他项目暂存内容及旧 CelesVault 跟踪；不对父仓库执行 add/reset/clean/stash/commit 或历史过滤。
 - 少量子代理需职责清楚、写入范围不冲突；不大规模编排。
 - 联网失败报告具体地址/错误，等用户处理代理/TUN，不反复盲试。

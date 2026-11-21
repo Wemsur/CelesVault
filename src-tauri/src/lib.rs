@@ -7,6 +7,7 @@ mod vault_commands;
 mod fs_jobs;
 mod path_guard;
 mod devices;
+mod monitoring_cleanup;
 #[cfg(all(windows, debug_assertions))]
 mod dev_lifecycle;
 

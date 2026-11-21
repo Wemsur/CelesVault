@@ -3,11 +3,12 @@ import { computed, ref } from 'vue'
 import { Button, Input, Checkbox, DropdownSelect, IconButton } from '@modrinth/ui'
 import { PlusIcon, XIcon } from '@modrinth/assets'
 import type { Timetable, WeekLesson } from '@/platform/vault-types'
+import { subjectColor, nextSubjectColor } from '@/platform/subject-colors'
 const timetable = defineModel<Timetable>({ required: true })
 const weekday = ref(1)
 const days: Record<number,string> = {1:'星期一',2:'星期二',3:'星期三',4:'星期四',5:'星期五',6:'星期六',7:'星期日'}
 const classSlots = computed(() => timetable.value.slots.filter(slot => slot.isClass))
-function addSubject() { timetable.value.subjects.push({ id: crypto.randomUUID(), name: '' }) }
+function addSubject() { timetable.value.subjects.push({ id: crypto.randomUUID(), name: '', color: nextSubjectColor(timetable.value.subjects) }) }
 function removeSubject(id:string) { if(timetable.value.lessons.some(lesson=>lesson.subjectId===id)){alertText.value='请先修改引用该科目的星期课程，再移除科目';return} timetable.value.subjects=timetable.value.subjects.filter(subject=>subject.id!==id) }
 function setClass(slotId:string, value:boolean) { const slot=timetable.value.slots.find(slot=>slot.id===slotId);if(!slot)return;slot.isClass=value;if(!value)timetable.value.lessons=timetable.value.lessons.filter(lesson=>lesson.slotId!==slotId) }
 function addSlot() { timetable.value.slots.push({ id:crypto.randomUUID(),label:`第${classSlots.value.length+1}节`,start:'08:00',end:'08:40',isClass:true }) }
@@ -18,8 +19,8 @@ const alertText=ref('')
 </script>
 <template>
 	<div class="vault-timetable-editor">
-		<h3>科目</h3><p class="vault-muted text-sm">只记录科目，不采集教师身份。</p>
-		<div class="vault-subject-editor"><div v-for="subject in timetable.subjects" :key="subject.id" class="flex gap-2"><Input v-model="subject.name" aria-label="科目名称" placeholder="科目名称" class="grow"/><IconButton label="移除科目" type="quiet" @click="removeSubject(subject.id)"><XIcon/></IconButton></div></div><Button type="outlined" @click="addSubject"><PlusIcon/>添加科目</Button>
+		<h3>科目</h3><p class="vault-muted text-sm">只记录科目，不采集教师身份。颜色用于课程卡片，与深灰背景混合；保存设置后生效。</p>
+		<div class="vault-subject-editor"><div v-for="subject in timetable.subjects" :key="subject.id" class="flex gap-2"><Input v-model="subject.name" aria-label="科目名称" placeholder="科目名称" class="grow"/><label class="vault-subject-color" :title="`${subject.name||'未命名科目'}卡片颜色`"><span class="sr-only">{{subject.name||'未命名科目'}}卡片颜色</span><input type="color" :value="subjectColor(subject.id,subject.color,timetable.subjects)" :aria-label="`${subject.name||'未命名科目'}卡片颜色`" @input="subject.color=($event.target as HTMLInputElement).value"/></label><IconButton label="移除科目" type="quiet" @click="removeSubject(subject.id)"><XIcon/></IconButton></div></div><Button type="outlined" @click="addSubject"><PlusIcon/>添加科目</Button>
 		<h3>每日共用时间段</h3><p class="vault-muted text-sm">时间使用 HH:mm；时间段不能重叠或跨午夜。取消“上课”可定义课间或其他非课程时间。</p>
 		<div v-for="slot in timetable.slots" :key="slot.id" class="vault-timeslot-row"><Input v-model="slot.label" aria-label="时间段名称" placeholder="第1节"/><Input v-model="slot.start" aria-label="开始时间" placeholder="08:00"/><span>–</span><Input v-model="slot.end" aria-label="结束时间" placeholder="08:40"/><Checkbox :model-value="slot.isClass" label="上课" @update:model-value="value=>setClass(slot.id,value)"/><IconButton label="移除时间段" type="quiet" @click="removeSlot(slot.id)"><XIcon/></IconButton></div>
 		<Button type="outlined" @click="addSlot"><PlusIcon/>添加时间段</Button>

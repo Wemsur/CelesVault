@@ -11,7 +11,7 @@
 | EngineStatus | dataRoot?: String；monitorState、monitorDetail: String；pendingCount、failedCount: u64；hasErrors: bool；health: String[] |
 | SourceRule | path: String；recursive: bool |
 | CaptureSettings | mode: String；processNames、processPaths、wpsInstallPaths: String[]；sources: SourceRule[]；includeDefaultSources、includeUsb: bool；extensions、excludedPaths、excludedSubjectIds: String[] |
-| Subject | id、name: String |
+| Subject | id、name: String；color?: #RRGGBB字符串（旧配置默认为null，前端默认配色） |
 | TimeSlot | id、label、start、end: String；isClass: bool |
 | WeekLesson | weekday: u8；slotId、subjectId: String；enabled: bool |
 | Timetable | subjects: Subject[]；slots: TimeSlot[]；lessons: WeekLesson[] |
@@ -87,6 +87,7 @@ pub fn shutdown(&self);
 - `homeDirection` 为 horizontal/vertical；`browserView` 为 grid/list。
 - 五项比例均要求有限数值、范围 `[0.15,0.85]`；默认 `.5`。缩放整数 75–200，默认 100。
 - 窗口宽 1100–7680、高 700–4320；默认 1280×800。默认 showHidden/windowMaximized/closeNoticed 为 false。
+- 科目color可省略或为null；设置时须为#RRGGBB，规范成小写。CSV接受原10列或追加color的11列，导出为11列，仅subject行使用color。该字段只负责显示，不重算课次历史。
 - 默认 Timetable/favorites **为空**，不建立示例课程或资料。
 - 科目/时间段/固定夹 id 为 1–80 个 ASCII 字母、数字、短横线或下划线。科目名、时间段标签、固定夹别名最多 128 字。
 - favorites 最多 512 项，position 为 0–4095；相同设备/卷/相对路径不得重复。相对根用空字符串，不接受绝对路径、`..`、ADS、保留组件或歧义路径。

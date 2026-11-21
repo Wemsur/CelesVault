@@ -29,12 +29,20 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .vault-page p { margin: 0; }
 .vault-muted { color: var(--color-secondary); }
 .vault-home-page, .vault-library-page { height: 100%; min-height: 0; }
-.vault-courses { height: 100%; display: flex; flex-direction: column; gap: .75rem; padding: .75rem; overflow: auto; min-width: 0; min-height: 0; }
-.vault-courses.horizontal { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(20rem, 48%); align-items: stretch; }
-.vault-course-card { margin: 0 !important; flex-shrink: 0; display: flex; flex-direction: column; gap: .75rem; min-width: 0; }
-.vault-courses.horizontal .vault-course-card { overflow: auto; }
-.vault-course-card.future { opacity: .55; }
-.vault-course-card.current { border-color: var(--color-brand); }
+.vault-courses { height: 100%; display: flex; flex-direction: column; gap: .75rem; padding: .75rem; overflow-x: hidden; overflow-y: auto; min-width: 0; min-height: 0; overscroll-behavior: contain; scroll-snap-type: y mandatory; }
+.vault-courses.has-courses { padding-block: var(--course-edge-y, 12px); }
+.vault-courses.horizontal { flex-direction: row; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory; align-items: stretch; }
+.vault-courses.horizontal.has-courses { padding: .75rem var(--course-edge-x, 12px); }
+.vault-course-card { margin: 0 !important; flex-shrink: 0; display: flex; flex-direction: column; gap: .75rem; min-width: 0; height: var(--course-height, 22rem); scroll-snap-align: center; background: color-mix(in srgb, var(--course-color, var(--color-raised-bg)) 18%, var(--color-raised-bg) 82%) !important; }
+.vault-courses.horizontal .vault-course-card { flex: 0 0 var(--course-width, 26rem); width: var(--course-width, 26rem); height: 100%; }
+.vault-course-card.future, .vault-course-card.empty { opacity: .58; }
+.vault-course-card.current { border-color: var(--course-color, var(--color-brand)); }
+.vault-course-files { overflow-y: auto; flex: 1; overscroll-behavior: contain; }
+.vault-course-card > header, .vault-course-card > footer, .vault-course-card > p { flex-shrink: 0; }
+.vault-course-card .vault-course-empty { flex: 1; display: grid; place-items: center; }
+@media (prefers-reduced-motion: reduce) { .vault-courses { scroll-behavior: auto; } }
+.vault-subject-color { display: flex; align-items: center; flex-shrink: 0; }
+.vault-subject-color input { width: 2.5rem; height: 2.25rem; padding: .2rem; border: 1px solid var(--surface-5); border-radius: .75rem; background: var(--surface-3); cursor: pointer; }
 .vault-course-heading, .vault-panel-title { display: flex; align-items: center; gap: .5rem; }
 .vault-course-heading h2, .vault-panel-title h2 { margin: 0; font-size: 1.125rem; color: var(--color-contrast); }
 .vault-course-heading small { color: var(--color-secondary); font-size: .75rem; }

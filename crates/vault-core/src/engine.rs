@@ -161,6 +161,39 @@ impl VaultEngine {
         self.restart_locked()?;
         self.status()
     }
+    /// 用户确认的全量清理：当前线程正常停止后，再结束其他实例并回收所有CelesVault会话。
+    pub fn cleanup_and_restart_monitoring(&self,cleanup:impl FnOnce()->Result<u32,String>)->Result<EngineStatus,String> {
+        let _lifecycle=lock(&self.lifecycle)?;
+        {let mut inner=lock(&self.shared.inner)?;
+            if inner.shutdown{return Err("引擎已经关闭".into());}
+            inner.switching=true;inner.capture_running=false;
+        }
+        // 即使当前线程停止困难，也先履行用户要求的其他同名实例清理。
+        let processes=cleanup();
+        let mut stopped=self.stop_service();
+        let sessions=capture::probe::etw::cleanup_celesvault_sessions();
+        // 外部停止残留会话可解除ProcessTrace等待，再次尝试join本实例线程。
+        if stopped.is_err() && sessions.is_ok() {stopped=self.stop_service();}
+        if let Err(error)=stopped {
+            let owner=lock(&self.service)?;
+            if owner.as_ref().is_some_and(|service|service.capture.is_some()||service.worker.is_some()) {
+                self.transition_error(&error);return Err(error);
+            }
+        }
+        let cleaned=match (processes,sessions) {
+            (Ok(processes),Ok(sessions))=>Ok((processes,sessions)),
+            (Err(a),Err(b))=>Err(format!("{a}；{b}")),
+            (Err(error),_)|(_,Err(error))=>Err(error),
+        };
+        let (processes,sessions)=match cleaned{Ok(result)=>result,Err(error)=>{self.transition_error(&error);return Err(error);}};
+        *lock(&self.service)?=None;
+        let recovered=(||{let inner=lock(&self.shared.inner)?;inner.store.as_ref().ok_or("数据目录尚未配置")?.recover_copying()})();
+        if let Err(error)=recovered{self.transition_error(&error);return Err(error);}
+        self.resume_service()?;
+        let mut status=self.status()?;
+        status.health.push(format!("本次清理结束{processes}个其他同名进程，停止{sessions}个CelesVault残留ETW会话"));
+        Ok(status)
+    }
     fn restart_locked(&self)->Result<(),String> {
         {
             let mut inner=lock(&self.shared.inner)?;

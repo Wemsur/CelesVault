@@ -22,6 +22,52 @@ use std::{
 };
 use windows_sys::Win32::{Foundation::*, System::Diagnostics::Etw::*};
 
+pub(crate) fn is_celesvault_session(name:&str)->bool {
+    let rest=name.strip_prefix("CelesVault-Capture-").or_else(||name.strip_prefix("CelesVault-WPSProbe-"));
+    let Some((pid,time))=rest.and_then(|rest|rest.split_once('-')) else{return false;};
+    !pid.is_empty() && !time.is_empty() && pid.bytes().all(|b|b.is_ascii_digit())
+        && time.bytes().all(|b|b.is_ascii_digit()) && pid.parse::<u32>().is_ok_and(|pid|pid>0)
+        && time.parse::<u64>().is_ok()
+}
+
+/// 只用于用户明确确认的全量监测清理，不是启动失败时的自动全局清理。
+pub(crate) fn cleanup_celesvault_sessions()->Result<u32,String> {
+    windows::enable_trace_privilege().map_err(|code|format!("无法启用清理跟踪权限：Win32={code}"))?;
+    let bytes=size_of::<EVENT_TRACE_PROPERTIES>()+8192;
+    let mut capacity=64u32;
+    let mut stopped=0;
+    for _ in 0..4 {
+        let mut storage:Vec<Vec<u64>>=(0..capacity).map(|_|vec![0;bytes.div_ceil(8)]).collect();
+        let mut pointers:Vec<*mut EVENT_TRACE_PROPERTIES>=storage.iter_mut().map(|buffer|{
+            let p=buffer.as_mut_ptr().cast::<EVENT_TRACE_PROPERTIES>();
+            unsafe {(*p).Wnode.BufferSize=bytes as u32;(*p).LoggerNameOffset=size_of::<EVENT_TRACE_PROPERTIES>() as u32;(*p).LogFileNameOffset=(size_of::<EVENT_TRACE_PROPERTIES>()+4096) as u32;}
+            p
+        }).collect();
+        let mut count=0;
+        let code=unsafe {QueryAllTracesW(pointers.as_mut_ptr(),capacity,&mut count)};
+        if code==ERROR_MORE_DATA {
+            if count>1024 || count<=capacity{return Err(format!("ETW会话枚举超出边界：{count}"));}
+            capacity=count;continue;
+        }
+        if code!=0{return Err(format!("枚举ETW会话失败：Win32={code}"));}
+        let mut errors=Vec::new();
+        for buffer in storage.iter().take(count.min(capacity) as usize) {
+            let p=unsafe {&*buffer.as_ptr().cast::<EVENT_TRACE_PROPERTIES>()};
+            let offset=p.LoggerNameOffset as usize;
+            if offset<size_of::<EVENT_TRACE_PROPERTIES>() || offset%2!=0 || offset>=bytes {return Err("ETW返回的会话名称边界无效".into());}
+            let units=unsafe {std::slice::from_raw_parts(buffer.as_ptr().cast::<u8>().add(offset).cast::<u16>(),(bytes-offset)/2)};
+            let Some(end)=units.iter().position(|c|*c==0) else{return Err("ETW会话名称缺少终止符".into());};
+            let Ok(name)=String::from_utf16(&units[..end]) else{continue;};
+            if !is_celesvault_session(&name){continue;}
+            let wide=windows::wide(&name);let mut props=properties(&wide);
+            let code=unsafe {ControlTraceW(CONTROLTRACE_HANDLE::default(),wide.as_ptr(),props.as_mut_ptr().cast(),EVENT_TRACE_CONTROL_STOP)};
+            if code==0 {stopped+=1;} else if code!=ERROR_WMI_INSTANCE_NOT_FOUND {errors.push(format!("停止{name}失败：Win32={code}"));}
+        }
+        return if errors.is_empty(){Ok(stopped)}else{Err(errors.join("；"))};
+    }
+    Err("ETW会话列表持续变化，未完成清理".into())
+}
+
 #[derive(Default, Debug)]
 struct ParsedFile {
     object: Option<u64>,
@@ -655,7 +701,7 @@ impl TraceSession {
             unsafe { StartTraceW(&mut handle, wide_name.as_ptr(), props.as_mut_ptr().cast()) };
         if code != 0 {
             return Err((format!(
-                "ETW StartTraceW 失败：Win32={code}。未启动采集；不会停止其他跟踪会话。"
+                "ETW StartTraceW 失败：Win32={code}。未启动采集；可在设置中执行“清理并重启监测”，结束其他同名实例并清理CelesVault残留会话。"
             ),false));
         }
         let mut context = Box::new(CallbackContext {
@@ -778,6 +824,12 @@ mod tests {
     fn issuing_thread_wins() {
         let m = HashMap::from([(8, 80), (9, 90)]);
         assert_eq!(attribute(Some(8), 9, 99, &m).0, Some(80));
+    }
+    #[test]
+    fn explicit_cleanup_only_matches_our_complete_session_names() {
+        assert!(is_celesvault_session("CelesVault-Capture-123-456"));
+        assert!(is_celesvault_session("CelesVault-WPSProbe-123-456"));
+        for name in ["NT Kernel Logger","CelesVault-Capture-0-456","CelesVault-Capture-123-456-extra","CelesVault-Capture-a-456","Other-CelesVault-Capture-123-456"] {assert!(!is_celesvault_session(name));}
     }
     #[test]
     fn invalid_pid_is_unknown() {

@@ -659,7 +659,7 @@ pub(crate) mod exclusion_tests {
     }
     pub(crate) fn setup(store:&mut Store)->Vec<CourseView> {
         let mut bundle=ConfigBundle::default();
-        bundle.timetable.subjects=vec![Subject {id:"excluded".into(),name:"排除科目".into()},Subject {id:"allowed".into(),name:"允许科目".into()}];
+        bundle.timetable.subjects=vec![Subject {id:"excluded".into(),name:"排除科目".into(),color:None},Subject {id:"allowed".into(),name:"允许科目".into(),color:None}];
         bundle.timetable.slots=vec![
             TimeSlot {id:"first".into(),label:"第一节".into(),start:"08:00".into(),end:"09:00".into(),is_class:true},
             TimeSlot {id:"second".into(),label:"第二节".into(),start:"10:00".into(),end:"11:00".into(),is_class:true}];

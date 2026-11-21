@@ -9,6 +9,7 @@ impl VaultEngine {
     pub fn status(&self)->Result<EngineStatus,String> {
         Ok(EngineStatus {data_root:None,monitor_state:"error".into(),monitor_detail:"真实监测/归档仅支持 Windows，未回退到浏览器模拟".into(),pending_count:0,failed_count:0,has_errors:true,health:vec!["当前平台不支持 Windows ETW 与卷/文件身份校验".into()]})
     }
+    pub fn cleanup_and_restart_monitoring(&self,_cleanup:impl FnOnce()->Result<u32,String>)->Result<EngineStatus,String>{Err(unavailable())}
     pub fn restart_monitoring(&self)->Result<EngineStatus,String> {Err(unavailable())}
     pub fn configure_root(&self,_path:String)->Result<EngineStatus,String> {Err(unavailable())}
     pub fn config(&self)->Result<ConfigBundle,String> {Err(unavailable())}
