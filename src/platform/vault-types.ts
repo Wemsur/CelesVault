@@ -1,3 +1,4 @@
+import { defaultAppearance, type AppearanceSettings } from './appearance-types'
 export interface EngineStatus {
 	dataRoot: string | null
 	monitorState: 'unconfigured' | 'running' | 'paused' | 'error'
@@ -50,6 +51,7 @@ export interface AppSettings {
 	windowMaximized: boolean
 	closeNoticed: boolean
 	notificationSeconds: number
+	appearance: AppearanceSettings
 }
 export interface FixedFolder { id: string; deviceId: string; volumeId: string; relativePath: string; alias: string; position: number }
 export interface ConfigBundle { version: number; app: AppSettings; capture: CaptureSettings; timetable: Timetable; favorites: FixedFolder[] }
@@ -85,7 +87,7 @@ export interface CopyJob { id: string; state: 'running' | 'completed' | 'failed'
 export const defaultAppSettings = (): AppSettings => ({
 	homeDirection: 'horizontal', horizontalRatio: .5, verticalRatio: .5, horizontalTargetRatio: .5, verticalTargetRatio: .5,
 	libraryRatio: .5, scalePercent: 100, showHidden: false, browserView: 'grid', windowWidth: 1280, windowHeight: 800,
-	windowMaximized: false, closeNoticed: false, notificationSeconds: 6,
+	windowMaximized: false, closeNoticed: false, notificationSeconds: 6, appearance: defaultAppearance(),
 })
 export const emptyConfig = (): ConfigBundle => ({
 	version: 1, app: defaultAppSettings(), timetable: { subjects: [], slots: [], lessons: [] }, favorites: [],

@@ -138,6 +138,34 @@ pub struct AppSettings {
     pub close_noticed: bool,
     #[serde(default = "default_notification_seconds")]
     pub notification_seconds: u32,
+    #[serde(default)]
+    pub appearance: AppearanceSettings,
+}
+
+pub const BACKGROUND_IDS: [&str; 13] = ["aurora","silk","mesh","grain","ice","veil","smoke","neuro","flow","rays","blend","flux","gate"];
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BackgroundParameters {
+    pub quality: f64, pub speed: f64, pub intensity: f64, pub fps: u32,
+    pub scale: f64, pub detail: f64, pub grain: f64, pub density: u32, pub shockwave: bool,
+}
+impl Default for BackgroundParameters {
+    fn default() -> Self { Self { quality: 0.5, speed: 1.0, intensity: 0.6, fps: 30, scale: 1.0, detail: 1.0, grain: 1.0, density: 80, shockwave: true } }
+}
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AppearanceSettings {
+    pub theme: String, pub hue: u32, pub background: String, pub shader: String,
+    pub parameters: std::collections::BTreeMap<String, BackgroundParameters>,
+    pub image: Option<String>, pub image_fit: String, pub image_opacity: f64, pub image_blur: f64,
+}
+impl Default for AppearanceSettings {
+    fn default() -> Self { Self {
+        theme: "customdark".into(), hue: 38, background: "off".into(), shader: "aurora".into(),
+        parameters: BACKGROUND_IDS.into_iter().map(|id|(id.into(),BackgroundParameters::default())).collect(),
+        image: None, image_fit: "cover".into(), image_opacity: 0.6, image_blur: 0.0,
+    } }
 }
 
 fn default_notification_seconds() -> u32 { 6 }
@@ -148,7 +176,7 @@ impl Default for AppSettings {
             home_direction: "horizontal".into(), horizontal_ratio: 0.5, vertical_ratio: 0.5,
             horizontal_target_ratio: 0.5, vertical_target_ratio: 0.5, library_ratio: 0.5,
             scale_percent: 100, show_hidden: false, browser_view: "grid".into(),
-            window_width: 1280, window_height: 800, window_maximized: false, close_noticed: false, notification_seconds: default_notification_seconds(),
+            window_width: 1280, window_height: 800, window_maximized: false, close_noticed: false, notification_seconds: default_notification_seconds(), appearance: AppearanceSettings::default(),
         }
     }
 }

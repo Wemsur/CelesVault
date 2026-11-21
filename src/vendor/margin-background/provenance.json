@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-21",
+  "source_root": "C:\\Users\\iexam\\github-project\\参考\\bilibili-margin-main",
+  "source_mode": "local working-tree bytes",
+  "license": "MIT (see LICENSE); upstream Paper Shaders portion: Apache-2.0 (see LICENSE-APACHE)",
+  "upstream_notes": [
+    "Shader Builder series: 21st.dev",
+    "Mesh Gradient: adapted from Paper Shaders, Apache-2.0",
+    "Gateway Flow: Neuform, 21st.dev; original attribution comments retained",
+    "Flux: existing WebGL shader only; no vgpu/WebGPU dependency copied"
+  ],
+  "files": [
+    {
+      "source": "src/content/bg/shaders.ts",
+      "source_sha256": "edcd41edac4929d37370bf9851e093ebe901cfd2ae6143db0d19c954bd4d85aa",
+      "destination": "shaders.ts",
+      "vendored_sha256": "adcbabdbdc5e69d5c0110bd9dcd88b8dca48dde6e5d88bda50a3c07bd3cadddb",
+      "modifications": "CelesVault type imports; configurable rendering, bounded density/resolution and lifecycle. program removes extension thumbnail storage/WebGPU integration; preserves original shader math/palettes."
+    },
+    {
+      "source": "src/content/bg/builder.ts",
+      "source_sha256": "2eb95d577679aef9ab923a2e2f3037d9ec713713bb87ade66c7633f0c3035ebe",
+      "destination": "builder.ts",
+      "vendored_sha256": "d5f18200f7fc7211370913f7c69d2ebe6e2877832a16837cb1dd9d7fbc6ed670",
+      "modifications": "CelesVault type imports; configurable rendering, bounded density/resolution and lifecycle. program removes extension thumbnail storage/WebGPU integration; preserves original shader math/palettes."
+    },
+    {
+      "source": "src/content/bg/program.ts",
+      "source_sha256": "7a8259371797611e19e85d26750f26d832ef96407a90ffac41d6a34a1c4f80ae",
+      "destination": "program.ts",
+      "vendored_sha256": "76bf63970ddb41ceccf8b65f7bd61f873ec90245d4f10b3d9b8d51d899618cff",
+      "modifications": "CelesVault type imports; configurable rendering, bounded density/resolution and lifecycle. program removes extension thumbnail storage/WebGPU integration; preserves original shader math/palettes."
+    },
+    {
+      "source": "src/content/bg/gate.ts",
+      "source_sha256": "01851beeb44331c3e41fed176858cfae9c93a130896f40e788c3df76fffc9ef6",
+      "destination": "gate.ts",
+      "vendored_sha256": "0a52df1053f16c7db879685439e7ac0da0fae4f0283f29ea16fa68c22186bf84",
+      "modifications": "CelesVault type imports; configurable rendering, bounded density/resolution and lifecycle. program removes extension thumbnail storage/WebGPU integration; preserves original shader math/palettes."
+    }
+  ]
+}

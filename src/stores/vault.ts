@@ -89,7 +89,7 @@ export const useVaultStore = defineStore('vault', () => {
 		if (appSaveTimer) clearTimeout(appSaveTimer)
 		if (platform.mode !== 'native' || !status.value?.dataRoot) return
 		appSaveTimer = setTimeout(() => {
-			const desired = { ...config.value.app }
+			const desired = JSON.parse(JSON.stringify(config.value.app)) as AppSettings
 			saving = saving.then(async () => {
 				const saved = await platform.vault.saveApp(desired)
 				config.value.capture = saved.capture; config.value.timetable = saved.timetable; config.value.favorites = saved.favorites

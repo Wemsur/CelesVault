@@ -32,7 +32,7 @@ function cancelPress(){if(press)clearTimeout(press)}
 onUnmounted(cancelPress)
 </script>
 <template>
-	<Card :id="`course-${course.id}`" class="vault-course-card" :class="{future,current,empty:!course.items.length}" :style="cardStyle" :data-course-id="course.id" :aria-label="`${course.subjectName} · ${course.label}`">
+	<Card :id="`course-${course.id}`" class="vault-course-card" :class="{future,current,empty:!course.items.length}" :style="cardStyle" :data-course-id="course.id" :data-file-count="course.items.length" :aria-label="`${course.subjectName} · ${course.label}`">
 		<header class="vault-course-heading" @contextmenu.prevent="context" @pointerdown="longPress" @pointerup="cancelPress" @pointercancel="cancelPress" @pointermove="cancelPress"><div class="min-w-0 grow"><h2 class="truncate">{{course.subjectName}}</h2><small v-if="course.slotId">{{course.label}} · {{short(course.startUnixMs)}}–{{short(course.endUnixMs)}}</small></div><Checkbox :label="`全选${course.subjectName}`" label-class="sr-only" :model-value="selected" :disabled="!selectable.length" @update:model-value="value=>vault.selectMany(selectable,value)"/><IconButton :label="`复制${course.subjectName}全部资料`" type="quiet" :disabled="!selectable.length||!vault.target?.writable||platform.mode!=='native'" @click="vault.requestExport(platform,selectable.map(item=>item.id))"><PlusIcon/></IconButton></header>
 		<p v-if="future" class="vault-muted text-sm">这节课还没有上哦</p>
 		<div v-if="course.items.length" class="vault-file-grid vault-course-files"><ArchiveTile v-for="item in course.items" :key="item.id" :item="item"/></div>

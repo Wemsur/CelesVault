@@ -34,12 +34,19 @@ function jump(id:string,animate=true){
 }
 function measure(){
 	const root=scroller.value;if(!root||!root.clientHeight||!root.clientWidth)return
-	const width=Math.min(520,Math.max(220,root.clientWidth*.8),root.clientWidth-24)
-	const height=Math.min(560,Math.max(220,root.clientHeight*.78),root.clientHeight-24)
-	root.style.setProperty('--course-width',`${width}px`)
-	root.style.setProperty('--course-height',`${height}px`)
-	root.style.setProperty('--course-edge-x',`${Math.max(12,(root.clientWidth-width)/2)}px`)
-	root.style.setProperty('--course-edge-y',`${Math.max(12,(root.clientHeight-height)/2)}px`)
+	root.style.setProperty('--course-viewport-width',`${root.clientWidth}px`)
+	root.style.setProperty('--course-viewport-height',`${root.clientHeight}px`)
+	const cards=root.querySelectorAll<HTMLElement>('[data-course-id]')
+	const rem=parseFloat(getComputedStyle(root).fontSize)
+	for(const card of cards){
+		const tileHeight=11.5*rem
+		const chrome=(card.querySelector('header')?.getBoundingClientRect().height??48)+5*rem+(card.querySelector('footer')?.getBoundingClientRect().height??0)
+		const rows=Math.max(1,Math.floor((root.clientHeight-chrome)/(tileHeight+.75*rem)))
+		card.style.setProperty('--course-columns',String(Math.min(3,Math.max(1,Math.ceil(Number(card.dataset.fileCount??0)/rows)))))
+	}
+	const first=cards[0];const last=cards[cards.length-1]
+	root.style.setProperty('--course-edge-start',`${Math.max(12,((vertical.value?root.clientWidth:root.clientHeight)-(vertical.value?first?.offsetWidth??0:first?.offsetHeight??0))/2)}px`)
+	root.style.setProperty('--course-edge-end',`${Math.max(12,((vertical.value?root.clientWidth:root.clientHeight)-(vertical.value?last?.offsetWidth??0:last?.offsetHeight??0))/2)}px`)
 	jump(centeredId||currentId.value,false)
 }
 function wheel(event:WheelEvent){
@@ -57,6 +64,7 @@ function rememberCenter(){
 }
 watch([currentId,()=>orderedCourses.value.map(course=>course.id).join('|')],async()=>{await nextTick();if(active){measure();jump(currentId.value)}})
 watch(vertical,async()=>{await nextTick();if(active){measure();jump(centeredId||currentId.value,false)}})
+watch(()=>[orderedCourses.value.map(course=>`${course.id}:${course.items.length}`).join('|'),vault.config.app.scalePercent],async()=>{await nextTick();if(active){measure();requestAnimationFrame(()=>{if(active)measure()})}})
 async function activate(){active=true;vault.targetContext='home';now.value=Date.now();if(tick)clearInterval(tick);tick=setInterval(()=>now.value=Date.now(),10000);await nextTick();if(!active)return;resize?.disconnect();resize=new ResizeObserver(measure);if(scroller.value)resize.observe(scroller.value);measure();jump(currentId.value,false)}
 function deactivate(){active=false;if(tick)clearInterval(tick);tick=undefined;resize?.disconnect()}
 onActivated(activate)

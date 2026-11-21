@@ -6,7 +6,7 @@
 
 工作流：`.github/workflows/windows-build.yml`，名称“Windows x64 构建与 Release 草稿”。只有 `workflow_dispatch`，不因 push、tag 或 PR 自动触发。
 
-将所需源码和工作流提交、推送至 GitHub 后，在 Actions 选择该工作流 → Run workflow，选择要构建的分支。手动入口通常需要工作流已进入默认分支；不要把本地新建文件当成远程已有工作流。助手本次未提交/推送/触发。
+将所需源码和工作流提交、推送至 GitHub 后，在 Actions 选择该工作流 → Run workflow，选择要构建的分支。手动入口通常需要工作流已进入默认分支；不要把本地新建文件当成远程已有工作流。工作流与锁文件现已本地提交；远端可用性及执行结果尚无验收记录。助手不代为推送或触发。
 
 ### 版本和 Tag
 

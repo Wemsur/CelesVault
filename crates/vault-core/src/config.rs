@@ -137,6 +137,29 @@ pub(crate) fn extension(value: &str) -> Result<String, String> {
     Ok(ext)
 }
 
+fn validate_appearance(value: &crate::api::AppearanceSettings) -> Result<(), String> {
+    use crate::api::BACKGROUND_IDS;
+    if !["customdark","customlight","system"].contains(&value.theme.as_str()) || value.hue > 360 { return Err("主题或色相无效".into()); }
+    if !["off","animated","image"].contains(&value.background.as_str()) || !BACKGROUND_IDS.contains(&value.shader.as_str()) { return Err("背景类型无效".into()); }
+    if value.parameters.len()!=BACKGROUND_IDS.len() || BACKGROUND_IDS.iter().any(|id|!value.parameters.contains_key(*id)) { return Err("背景参数必须包含全部已知背景".into()); }
+    for p in value.parameters.values() {
+        for (name,n,lo,hi) in [("精细度",p.quality,0.25,1.0),("速度",p.speed,0.0,3.0),("强度",p.intensity,0.0,1.0),("尺度",p.scale,0.5,3.0),("细节",p.detail,0.5,3.0),("颗粒",p.grain,0.0,3.0)] {
+            if !n.is_finite() || n<lo || n>hi { return Err(format!("背景{name}超出范围")); }
+        }
+        if ![15,30,60].contains(&p.fps) || !(20..=160).contains(&p.density) { return Err("背景帧率或线路密度无效".into()); }
+    }
+    if !["cover","contain"].contains(&value.image_fit.as_str()) || !value.image_opacity.is_finite() || !(0.0..=1.0).contains(&value.image_opacity) || !value.image_blur.is_finite() || !(0.0..=30.0).contains(&value.image_blur) { return Err("图片背景参数无效".into()); }
+    if let Some(image)=&value.image {
+        use base64::Engine;
+        let text=image.strip_prefix("data:image/jpeg;base64,").ok_or("背景图片须为应用转换的JPEG显示副本")?;
+        if text.len()>440_000 { return Err("背景显示副本过大".into()); }
+        let bytes=base64::engine::general_purpose::STANDARD.decode(text).map_err(|_|"背景图片编码无效")?;
+        if bytes.len()>320*1024 || !bytes.starts_with(&[0xff,0xd8,0xff]) || !bytes.ends_with(&[0xff,0xd9]) { return Err("背景图片不是有效的有界JPEG副本".into()); }
+    }
+    if value.background=="image" && value.image.is_none() { return Err("请先选择背景图片".into()); }
+    Ok(())
+}
+
 pub fn validate_app(app: AppSettings) -> Result<AppSettings, String> {
     if !["horizontal", "vertical"].contains(&app.home_direction.as_str()) {
         return Err("主页方向只能是 horizontal 或 vertical".into());
@@ -148,6 +171,7 @@ pub fn validate_app(app: AppSettings) -> Result<AppSettings, String> {
             return Err(format!("{name}必须在 {MIN_RATIO}–{MAX_RATIO} 之间"));
         }
     }
+    validate_appearance(&app.appearance)?;
     if app.notification_seconds > 120 { return Err("通知消失时间必须为 0–120 秒，0 表示手动关闭".into()); }
     if !(75..=200).contains(&app.scale_percent) { return Err("界面缩放必须在 75–200% 之间".into()); }
     if !(1100..=7680).contains(&app.window_width) || !(700..=4320).contains(&app.window_height) {
@@ -235,6 +259,25 @@ mod tests {
         assert!(validate_app(app).is_err());
         value["app"]["notificationSeconds"]=serde_json::json!("6");
         assert!(parse_config(&value.to_string()).is_err());
+    }
+    #[test]
+    fn appearance_defaults_and_parameter_boundaries() {
+        let mut value=serde_json::to_value(ConfigBundle::default()).unwrap();
+        value["app"].as_object_mut().unwrap().remove("appearance");
+        let app=parse_config(&value.to_string()).unwrap().app;
+        assert_eq!(app.appearance.theme,"customdark");
+        assert_eq!(app.appearance.hue,38);
+        assert_eq!(app.appearance.background,"off");
+        for theme in ["customdark","customlight","system"] {
+            let mut app=AppSettings::default();app.appearance.theme=theme.into();assert!(validate_app(app).is_ok());
+        }
+        let mut app=AppSettings::default();app.appearance.hue=361;assert!(validate_app(app).is_err());
+        let mut app=AppSettings::default();app.appearance.parameters.get_mut("gate").unwrap().density=161;assert!(validate_app(app).is_err());
+        let mut app=AppSettings::default();app.appearance.parameters.get_mut("aurora").unwrap().quality=f64::NAN;assert!(validate_app(app).is_err());
+        let mut app=AppSettings::default();app.appearance.parameters.remove("ice");assert!(validate_app(app).is_err());
+        let mut app=AppSettings::default();app.appearance.background="image".into();assert!(validate_app(app).is_err());
+        let mut app=AppSettings::default();app.appearance.image=Some("https://example.invalid/image.jpg".into());assert!(validate_app(app).is_err());
+        let mut app=AppSettings::default();app.appearance.image=Some("data:image/jpeg;base64,AAAA".into());assert!(validate_app(app).is_err());
     }
     #[test]
     fn bounds_are_not_silently_clamped() {

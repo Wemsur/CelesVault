@@ -1,0 +1,17 @@
+.vault-background { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; background: var(--color-bg); }
+.vault-background-art { position: absolute; inset: 0; background-repeat: no-repeat; background-position: center; }
+.vault-background-art > canvas { width: 100%; height: 100%; display: block; }
+.vault-shell { position: relative; z-index: 1; }
+.vault-background-enabled .vault-shell { background: color-mix(in srgb, var(--color-raised-bg) 78%, transparent); }
+.vault-background-enabled .vault-content, .vault-background-enabled .vault-browser { background: color-mix(in srgb, var(--color-bg) 64%, transparent); }
+.vault-background-enabled .vault-course-card { background: color-mix(in srgb, var(--course-color, var(--color-raised-bg)) 15%, color-mix(in srgb, var(--color-raised-bg) 78%, transparent)) !important; }
+.vault-appearance { display: flex; flex-direction: column; gap: 1rem; }
+.vault-appearance h2, .vault-appearance h3 { margin: 0; }
+.vault-range-label { display: grid; grid-template-columns: 1fr auto; gap: .625rem; font-size: .875rem; }
+.vault-range-label output { color: var(--color-secondary); font-variant-numeric: tabular-nums; }
+.vault-range-label input { grid-column: 1 / -1; width: 100%; cursor: pointer; accent-color: var(--color-brand); min-height: 1.5rem; }
+.vault-hue-range { appearance: none; border-radius: var(--radius-max); height: .625rem; min-height: .625rem !important; margin: .5rem 0; background: linear-gradient(to right, #ff5555,#ffff55,#55ff55,#55ffff,#5555ff,#ff55ff,#ff5555); }
+.vault-background-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem,1fr)); gap: .5rem; }
+.vault-background-options > button { justify-content: flex-start; }
+.vault-background-parameters { display: flex; flex-direction: column; gap: 1rem; margin: 0 !important; }
+.vault-background-image-preview { width: 100%; height: 10rem; object-fit: contain; border: 1px solid var(--color-divider); border-radius: var(--radius-md); background: var(--color-bg); }

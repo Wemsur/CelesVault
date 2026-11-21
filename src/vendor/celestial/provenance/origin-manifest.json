@@ -982,11 +982,12 @@
 			"source": "packages/assets/generated-icons.ts",
 			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
 			"source_sha256": "b4debf8a6a79f12709a0374bc15c0a4a49045dfedbb01bfc30ec518c37fe188e",
-			"vendored_sha256": "f7cb30b3fb41c2f1aaa492c4abe1d54c0cf2c808ecbeb5f1cb4739a710b647a5",
+			"vendored_sha256": "54a7864fcf3ddd289c30fe5344366d1588e30ee0445ab5c289a55d9bec5258ba",
 			"license": "GPL-3.0-only",
 			"modifications": [
 				"Generate only 39 selected original export names and exact SVG paths; no broad icon maps/business/branding imports.",
-				"2026-11-20: Export the original notification panel/provider and its required status icons."
+				"2026-11-20: Export the original notification panel/provider and its required status icons.",
+				"2026-11-21: add original SunIcon/MoonIcon exports for theme selector."
 			]
 		},
 		{
@@ -1219,6 +1220,39 @@
 			"source_sha256": "14239890c2d0a7007d9c5a39baa17ef177f12141bdf09f494909f6b44cc99660",
 			"vendored_sha256": "14239890c2d0a7007d9c5a39baa17ef177f12141bdf09f494909f6b44cc99660",
 			"license": "ISC/MIT (Lucide/Feather; inline notices retained)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "ui/components/base/AppearanceThemeSelector.vue",
+			"source": "packages/ui/src/layouts/shared/appearance-settings/components/appearance-settings-theme-selector.vue",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "83c181c20f92a34964430063c75460c10c18f62d35b60efc03821e56625e73db",
+			"vendored_sha256": "6a581255ac13ab4e3d1bafca7dc422dda1e539035362282cb6d43e779aced437",
+			"license": "GPL-3.0-only",
+			"modifications": [
+				"Chinese labels; remove i18n and unused themes; preserve preview DOM and styles; use globally loaded theme classes."
+			]
+		},
+		{
+			"destination": "assets/icons/sun.svg",
+			"source": "packages/assets/icons/sun.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "a241bb15dfd50c3350749bae9bb6934f0dfc038b4293a7fac7aaf212a282d920",
+			"vendored_sha256": "a241bb15dfd50c3350749bae9bb6934f0dfc038b4293a7fac7aaf212a282d920",
+			"license": "ISC/MIT (Lucide/Feather)",
+			"modifications": [
+				"Byte-for-byte copy."
+			]
+		},
+		{
+			"destination": "assets/icons/moon.svg",
+			"source": "packages/assets/icons/moon.svg",
+			"source_head": "3a384015be700fc3eba3351dd4a3339bc3a9d31d",
+			"source_sha256": "9fadbacd3f17a598ba43e7525fb815fa57cf580a732b783cd5a435845b725dc0",
+			"vendored_sha256": "9fadbacd3f17a598ba43e7525fb815fa57cf580a732b783cd5a435845b725dc0",
+			"license": "ISC/MIT (Lucide/Feather)",
 			"modifications": [
 				"Byte-for-byte copy."
 			]

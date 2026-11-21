@@ -61,6 +61,12 @@
 
 右下角为避让安全弹出按钮，宿主仅增加面板底部偏移、视口宽高边界和溢出滚动，不改变原通知内部布局。现已不再使用旧的常驻复制结果文本块。设置提供四类显式示例（文字说明为示例）及0–120秒，默认6秒；保存后生效。
 
+## 2026-11-21：外观主题与背景
+
+新增 `ui/components/base/AppearanceThemeSelector.vue`，复制自本地Celestial `packages/ui/src/layouts/shared/appearance-settings/components/appearance-settings-theme-selector.vue`。保留原主题预览卡、单选标记、选中/标签和示例布局；删除i18n调用与无关主题分支、改中文，仅提供customlight/customdark/system。主题变量已在原variables.scss中，不另造浅深色板。新增sun/moon原SVG，离线Inter不变。新文件和图标的源/目标摘要已纳入origin-manifest。
+
+动态背景单独位于 `src/vendor/margin-background`，来源和必要许可见其provenance.json、LICENSE与LICENSE-APACHE，不混入Celestial来源。业务外观页仅组合原控件，参数控制实际renderer，不复制扩展chrome.storage/intro/账号/字体。
+
 ## 许可与版权
 
 原 `packages/ui/COPYING.md`、`packages/assets/COPYING.md`、`apps/app-frontend/COPYING.md` 指定源码为 **GPL-3.0-only**，对应完整 LICENSE 和原根 COPYING 均已存入 vendor 的 `provenance/licenses/`。原 Rinth, Inc. 版权/品牌限制文字没有删改。

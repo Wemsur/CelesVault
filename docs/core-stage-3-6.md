@@ -193,6 +193,10 @@ trash/purge 的用户二次确认由 JS/宿主在命令前执行；这里没有�
 - data/cache/thumbnails：只新建 UUID 自有缓存、回读摘要、只读保护、记录 identity/PNG/source digest。已知缓存 LRU 清理也须 OWN 验证句柄；全目录物理预算 32 MiB/256 文件，未知文件计入预算但不删除，扫描最多 1024 条。
 - 缓存索引前崩溃可能留下未知孤立缓存；不猜归属清理。预算被未知文件占满时返回实际生成 data URI，同时 status 记录“未写缓存”错误，不扩大缓存或写另一目录。缓存缺失/被替换/摘要错误明确返回，归档本体仍走自己的打开/导出验证。
 
+## 2026-11-21 外观配置扩展
+
+AppSettings新增默认appearance，字段为theme/hue/background/shader/parameters/image/imageFit/imageOpacity/imageBlur；每个背景独立quality/speed/intensity/fps/scale/detail/grain/density/shockwave。旧配置缺appearance时默认customdark/hue38/off；配置格式与schema不变，Rust校验枚举/有限范围、有界JPEG副本，仍受整份1MiB限制。见appearance.md。旧配置和边界测试仅新增源码未执行，Native重启持久化待验收。
+
 ## 10. 依赖、只读核对与未验收
 
 核心 manifest 精确复用本地已有版本：regex 1.12.2、csv 1.3.1、image 0.25.10、base64 0.22.1；rusqlite 0.37.0 增 functions；chrono 0.4.42 移通用依赖。原 sha2/uuid/windows-sys 版本及 Win32_System_Time 等 features 保留。根 Cargo.lock/宿主/workflow 不由本核心任务修改。

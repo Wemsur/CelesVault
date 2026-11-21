@@ -1,3 +1,5 @@
+export { default as SunIcon } from './icons/sun.svg?component'
+export { default as MoonIcon } from './icons/moon.svg?component'
 export { default as CheckCircleIcon } from './icons/check-circle.svg?component'
 export { default as IssuesIcon } from './icons/issues.svg?component'
 export { default as XCircleIcon } from './icons/x-circle.svg?component'

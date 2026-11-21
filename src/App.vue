@@ -9,6 +9,8 @@ import CopyActionBar from '@/components/CopyActionBar.vue'
 import CopyConflictModal from '@/components/CopyConflictModal.vue'
 import ArchiveDetailModal from '@/components/ArchiveDetailModal.vue'
 import SafeEject from '@/components/SafeEject.vue'
+import BackgroundLayer from '@/features/appearance/BackgroundLayer.vue'
+import { initializeAppearance } from '@/platform/appearance'
 import { usePlatform, type Unlisten } from '@/platform'
 import { useShellStore } from '@/stores/shell'
 import { useVaultStore } from '@/stores/vault'
@@ -16,6 +18,7 @@ import { useVaultStore } from '@/stores/vault'
 const shell = useShellStore()
 const vault = useVaultStore()
 const platform = usePlatform()
+const stopAppearance = initializeAppearance()
 const closeNotice = ref<InstanceType<typeof NewModal> | null>(null)
 provideModalBehavior({ noblur: ref(false) })
 const notifications = new AppNotificationManager(() => vault.config.app.notificationSeconds)
@@ -51,6 +54,7 @@ onMounted(async () => {
 })
 onUnmounted(() => {
 	disposed = true
+	stopAppearance()
 	if (refreshTimer) clearInterval(refreshTimer)
 	unlistenConfig?.()
 	window.removeEventListener('vault:preview-window-action', previewMessage)
@@ -58,6 +62,7 @@ onUnmounted(() => {
 })
 </script>
 <template>
+	<BackgroundLayer />
 	<AppShell />
 	<CopyActionBar />
 	<OperationNotifications :manager="notifications" />
