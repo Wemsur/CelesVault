@@ -153,6 +153,22 @@ mod windows {
         pub(crate) links: u32,
     }
 
+    impl FileStamp {
+        /// 只报告有差异的字段，不带路径；数值方向固定为审批快照 -> 当前读取。
+        pub(crate) fn changes_since(&self, expected: &Self) -> Option<String> {
+            let mut changes = Vec::new();
+            if self.key.volume != expected.key.volume { changes.push(format!("卷序列号 {:08x} -> {:08x}", expected.key.volume, self.key.volume)); }
+            if self.key.index != expected.key.index { changes.push(format!("文件ID {:016x} -> {:016x}", expected.key.index, self.key.index)); }
+            if self.key.created != expected.key.created { changes.push(format!("创建时间 {} -> {}", expected.key.created, self.key.created)); }
+            if self.size != expected.size { changes.push(format!("大小 {} -> {}", expected.size, self.size)); }
+            if self.modified != expected.modified { changes.push(format!("最后写入时间 {} -> {}", expected.modified, self.modified)); }
+            if self.changed != expected.changed { changes.push(format!("ChangeTime {} -> {}", expected.changed, self.changed)); }
+            if self.attributes != expected.attributes { changes.push(format!("属性 0x{:08x} -> 0x{:08x}", expected.attributes, self.attributes)); }
+            if self.links != expected.links { changes.push(format!("硬链接数 {} -> {}", expected.links, self.links)); }
+            if changes.is_empty() { None } else { Some(changes.join("；")) }
+        }
+    }
+
     pub(crate) fn file_stamp(file: &File) -> Result<FileStamp, String> {
         let mut info = BY_HANDLE_FILE_INFORMATION::default();
         // SAFETY: File 在调用期间拥有 HANDLE；info 是正确大小的可写输出结构。
@@ -803,17 +819,18 @@ mod windows {
             // 假定跨发布缓存/落盘精度不变。身份连续性来自本次成功按句柄 rename、
             // 始终持有且拒绝写/删共享的同一个 File，而非重开路径后只比较大小。
             // 此例外只用于自有提交边界；审批/暂存阶段仍比较完整 FileKey/Stamp。
-            if self.active || !self.published_path.as_deref().is_some_and(|path| same_path(path, destination))
-                || stamp.key.volume != self.key.volume || stamp.key.index == 0
-                || stamp.size != expected_size || stamp.links != 1
-                || stamp.attributes & FILE_ATTRIBUTE_DIRECTORY != 0
-                || !same_path(&final_path(&self.file)?, destination)
-            {
-                return Err("文件已提交，但最终导出身份或大小复核失败，请检查目标设备".into());
-            }
-            if file_hash(&mut self.file)? != expected_hash || file_stamp(&self.file)? != stamp {
-                return Err("文件已提交，但最终导出摘要或元数据复核失败，请检查目标设备".into());
-            }
+            let mut failures = Vec::new();
+            if self.active { failures.push("发布尚未完成".to_string()); }
+            if !self.published_path.as_deref().is_some_and(|path| same_path(path, destination)) { failures.push("发布目标与本次提交记录不符".into()); }
+            if stamp.key.volume != self.key.volume { failures.push(format!("卷序列号 {:08x} -> {:08x}", self.key.volume, stamp.key.volume)); }
+            if stamp.key.index == 0 { failures.push("当前文件ID为空".into()); }
+            if stamp.size != expected_size { failures.push(format!("大小应为{expected_size}，实际{}", stamp.size)); }
+            if stamp.links != 1 { failures.push(format!("硬链接数应为1，实际{}", stamp.links)); }
+            if stamp.attributes & FILE_ATTRIBUTE_DIRECTORY != 0 { failures.push("句柄指向目录".into()); }
+            if !same_path(&final_path(&self.file)?, destination) { failures.push("句柄最终路径与导出名不符".into()); }
+            if !failures.is_empty() { return Err(format!("文件已提交，但最终导出复核失败（{}）；正式文件已保留，未按暂存删除", failures.join("；"))); }
+            if file_hash(&mut self.file)? != expected_hash { return Err("文件已提交，但最终导出 SHA-256 不匹配；正式文件已保留，请检查目标设备".into()); }
+            if let Some(difference) = file_stamp(&self.file)?.changes_since(&stamp) { return Err(format!("文件已提交，但最终摘要读取期间元数据变化（{difference}）；正式文件已保留")); }
             target.validate()
         }
     }
@@ -896,6 +913,21 @@ mod windows {
         }
         impl Drop for TestDirectory {
             fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); }
+        }
+
+        #[test]
+        fn stamp_diagnostics_report_all_changed_fields_without_relaxing_comparison() {
+            let expected = FileStamp { key: FileKey { volume: 1, index: 2, created: 3 }, size: 4, modified: 5, changed: 6, attributes: 0x21, links: 1 };
+            assert!(expected.changes_since(&expected).is_none());
+            let mut current = expected.clone();
+            current.key.index = 20; current.key.created = 30; current.changed = 60; current.attributes = 0x20;
+            let changes = current.changes_since(&expected).unwrap();
+            assert!(changes.contains("文件ID 0000000000000002 -> 0000000000000014"));
+            assert!(changes.contains("创建时间 3 -> 30"));
+            assert!(changes.contains("ChangeTime 6 -> 60"));
+            assert!(changes.contains("属性 0x00000021 -> 0x00000020"));
+            assert!(!changes.contains("大小"));
+            assert_ne!(current, expected);
         }
 
         #[test]

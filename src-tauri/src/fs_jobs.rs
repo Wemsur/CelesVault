@@ -86,7 +86,9 @@ pub struct CopyJob {
     pub state: String,
     /// 去重后的来源文件数，不是字节数；全部 skip 仍是一个真实结束任务。
     pub total: u64,
+    /// 已尝试的来源数，包含当前失败项；不代表全部已成功。
     pub processed: u64,
+    /// 已完成内容复核、同步及目标校验的副本数；仅rename成功不计入。
     pub copied: u64,
     pub skipped: u64,
     pub error: Option<String>,
@@ -645,18 +647,12 @@ mod native {
             let source = supplied.remove(&expected.id).ok_or("审批资料缺失")?;
             if source.display_name != expected.display_name { return Err("归档显示名称在审批后变化，请重新预览".into()); }
             let mut archive = archive_source(&source, &protected, &mut cache)?;
-            if archive.stamp != expected.stamp {
-                let difference = if archive.stamp.key != expected.stamp.key { "卷、文件 ID 或创建时间" }
-                    else if archive.stamp.size != expected.stamp.size { "文件大小" }
-                    else if archive.stamp.modified != expected.stamp.modified { "最后写入时间" }
-                    else if archive.stamp.changed != expected.stamp.changed { "变更时间（可能有属性或名称写入）" }
-                    else if archive.stamp.attributes != expected.stamp.attributes { "文件属性" }
-                    else { "硬链接数量" };
-                return Err(format!("归档内容或身份在审批后变化（{difference}），未启动复制"));
+            if let Some(difference) = archive.stamp.changes_since(&expected.stamp) {
+                return Err(format!("资料“{}”在审批后变化（{difference}），整批未启动复制", expected.display_name));
             }
-            if !same_path(&final_path(&archive.file)?, &expected.path) { return Err("归档最终路径在审批后变化，未启动复制".into()); }
-            if file_hash(&mut archive.file)? != expected.hash { return Err("归档 SHA-256 在审批后变化，未启动复制".into()); }
-            if file_stamp(&archive.file)? != expected.stamp { return Err("归档在审批摘要复核期间变化，未启动复制".into()); }
+            if !same_path(&final_path(&archive.file)?, &expected.path) { return Err(format!("资料“{}”的归档最终路径在审批后变化，整批未启动复制", expected.display_name)); }
+            if file_hash(&mut archive.file)? != expected.hash { return Err(format!("资料“{}”的 SHA-256 在审批后变化，整批未启动复制", expected.display_name)); }
+            if let Some(difference) = file_stamp(&archive.file)?.changes_since(&expected.stamp) { return Err(format!("资料“{}”在审批摘要复核期间变化（{difference}），整批未启动复制", expected.display_name)); }
             let decision = decisions.get(&expected.id).copied().unwrap_or(Policy::KeepBoth);
             let mut bound = None;
             if decision == Policy::Replace && expected.existing.is_some() {
@@ -707,7 +703,12 @@ mod native {
                 check_cancel(&cancel)?; prepared.target.validate()?; prepared.protected.reject_target(&prepared.target)?;
                 match copy_one(&prepared.target, &prepared.protected, &prepared.reserved, source, &cancel, &mut current, &mut publisher, &registry) {
                     Ok(skipped) => { current.processed += 1; if skipped { current.skipped += 1; } }
-                    Err(Failure::Cancelled) => return Err(Failure::Cancelled), Err(error) => { current.processed += 1; return Err(error); }
+                    Err(Failure::Cancelled) => return Err(Failure::Cancelled),
+                    Err(Failure::Error(error)) => {
+                        current.processed += 1;
+                        let remaining = current.total.saturating_sub(current.processed);
+                        return Err(Failure::Error(format!("资料“{}”：{error}；后续 {remaining} 份未继续处理", source.name)));
+                    }
                 }
                 publisher.publish(&registry, &current)?;
             }
@@ -777,10 +778,11 @@ mod native {
                 temp.verify()?;
                 match temp.publish(target, &name) {
                     Ok(()) => {
-                        current.copied += 1;
                         temp.verify_published(target, &name, copied_bytes, &copied_hash)?;
                         temp.file.sync_all().map_err(|error| io_error("已提交导出的磁盘同步失败，请检查设备", error))?;
-                        target.validate()?; return Ok(false);
+                        target.validate()?;
+                        current.copied += 1;
+                        return Ok(false);
                     }
                     Err(error) => {
                         if matches!(error.raw_os_error(), Some(80) | Some(183)) || target.entry_exists(&name)? {
@@ -869,10 +871,10 @@ mod native {
             check_cancel(cancel)?; verify_held(&mut old.file, target, &record)?;
             protected.reject_target(target)?; temp.verify()?;
             temp.publish(target, &source.name).map_err(|error| io_error("替换提交发生名称冲突或设备错误，不覆盖新来文件", error))?;
-            current.copied += 1;
             temp.verify_published(target, &source.name, size, expected_hash)?;
             temp.file.sync_all().map_err(|error| io_error("同步新导出失败，旧备份仍保留", error))?;
             target.validate()?; protected.reject_target(target)?; verify_held(&mut old.file, target, &record)?;
+            current.copied += 1;
             // durable 完成标记先落盘，才按已验证的旧句柄删除本次备份。
             let mut marker = persist_record(target, &marker_name(&id), &record)?;
             verify_held(&mut old.file, target, &record)?;

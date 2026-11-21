@@ -22,8 +22,27 @@ let touchPrevious = { x: 0, y: 0 }
 let touchScrolling = false
 let touchActive = false
 let touchScroller: HTMLElement | null = null
-function finishTouchScroll() {
-	if(touchScroller){touchScroller.style.removeProperty('scroll-snap-type');touchScroller=null}
+function finishTouchScroll(center = false) {
+	const root = touchScroller
+	if (!root) return
+	touchScroller = null
+	const horizontal = root.classList.contains('horizontal')
+	let destination = horizontal ? root.scrollLeft : root.scrollTop
+	if (center && root.isConnected) {
+		const bounds = root.getBoundingClientRect()
+		const centerPoint = horizontal ? bounds.left + root.clientWidth / 2 : bounds.top + root.clientHeight / 2
+		let nearestDistance = Infinity
+		for (const card of root.querySelectorAll<HTMLElement>('[data-course-id]')) {
+			const box = card.getBoundingClientRect()
+			const delta = (horizontal ? box.left + box.width / 2 : box.top + box.height / 2) - centerPoint
+			if (Math.abs(delta) < nearestDistance) { nearestDistance = Math.abs(delta); destination = (horizontal ? root.scrollLeft : root.scrollTop) + delta }
+		}
+	}
+	root.style.removeProperty('scroll-snap-type')
+	if (center && root.isConnected) {
+		const behavior = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'
+		root.scrollTo(horizontal ? { left: destination, behavior } : { top: destination, behavior })
+	}
 }
 function touchStart(event: TouchEvent) {
 	if(event.touches.length!==1){cancelGesture();return}
@@ -66,7 +85,7 @@ function touchMove(event: TouchEvent) {
 	vault.pointerDrag = { x: touch.clientX, y: touch.clientY, count: vault.dragIds.length }
 }
 function touchEnd(event: TouchEvent) {
-	touchActive=false;finishTouchScroll()
+	touchActive=false;finishTouchScroll(true)
 	if (longPress) clearTimeout(longPress)
 	if (!touchDrag) return
 	touchDrag = false
