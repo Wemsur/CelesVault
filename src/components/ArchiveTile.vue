@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
-import { Checkbox, IconButton, Button, ConfirmModal } from '@modrinth/ui'
+import { Checkbox, IconButton, Button, ConfirmModal, NewModal } from '@modrinth/ui'
 import { FileTextIcon, FileImageIcon, InfoIcon, RefreshCwIcon, XIcon } from '@modrinth/assets'
 import type { ArchiveItem } from '@/platform/vault-types'
 import { useVaultStore } from '@/stores/vault'
@@ -14,6 +14,12 @@ const actionBusy = ref(false)
 const removeModal = ref<InstanceType<typeof ConfirmModal> | null>(null)
 const removalTask = ref<string | null>(null)
 const removalName = ref('')
+const errorModal = ref<InstanceType<typeof NewModal> | null>(null)
+const errorDetails = ref({ name: '', message: '' })
+function showErrorDetails() {
+	errorDetails.value = { name: props.item.displayName, message: failureText.value }
+	errorModal.value?.show()
+}
 const failureText = computed(() => props.item.error || '这份资料未能完成收纳，可重试或移除此失败记录。')
 function confirmRemove() {
 	if (actionBusy.value || props.item.state !== 'failed' || !props.item.taskId) return
@@ -160,7 +166,7 @@ onUnmounted(() => { disposed = true; if(touchDrag||dragging)cancelGesture(); els
 			<div class="vault-failure-content">
 				<strong>收纳失败</strong>
 				<span class="vault-failure-name" :title="item.displayName">{{ item.displayName }}</span>
-				<p class="vault-failure-reason" :title="failureText">{{ failureText }}</p>
+				<button type="button" class="vault-failure-details" @pointerdown.stop @touchstart.stop @touchmove.stop @touchend.stop @click.stop="showErrorDetails" @dblclick.stop @keydown.stop>错误详情</button>
 				<div class="vault-failure-actions" @pointerdown.stop @touchstart.stop @touchmove.stop @touchend.stop @click.stop @dblclick.stop @keydown.stop>
 					<Button size="sm" type="outlined" :loading="actionBusy" :disabled="!item.taskId || platform.mode !== 'native'" @click="confirmRemove"><XIcon />移除</Button>
 					<Button size="sm" type="colored" color="red" :loading="actionBusy" :disabled="!item.taskId || platform.mode !== 'native'" @click="retry"><RefreshCwIcon />重试</Button>
@@ -168,5 +174,10 @@ onUnmounted(() => { disposed = true; if(touchDrag||dragging)cancelGesture(); els
 			</div>
 		</div>
 	</div>
+	<NewModal ref="errorModal" header="收纳失败详情" width="32rem" scrollable>
+		<p class="vault-error-detail-name">{{ errorDetails.name }}</p>
+		<pre class="vault-error-detail-message">{{ errorDetails.message }}</pre>
+		<template #actions><Button type="outlined" @click="errorModal?.hide()">关闭</Button></template>
+	</NewModal>
 	<ConfirmModal ref="removeModal" :title="`移除“${removalName}”的失败记录？`" description="只将失败记录从主页和资料库列表撤下，不删除原来源文件或任何归档、暂存文件。此操作不进入回收站，移除后不能再从此卡片重试。" :markdown="false" proceed-label="移除记录" @proceed="removeFailed"/>
 </template>

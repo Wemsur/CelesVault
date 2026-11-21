@@ -51,18 +51,23 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .vault-file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)); gap: .75rem; min-height: 0; align-content: start; }
 .vault-file-grid.list { display: flex; flex-direction: column; gap: .5rem; }
 .vault-file-tile { touch-action: none; position: relative; display: flex; flex-direction: column; align-items: center; gap: .3rem; padding: .75rem; border-radius: var(--radius-md); cursor: pointer; min-width: 0; background: var(--color-button-bg); user-select: none; -webkit-touch-callout: none; }
-.vault-file-tile.failed { min-height: 16rem; cursor: default; overflow: hidden; isolation: isolate; }
+.vault-file-tile.failed { cursor: default; overflow: hidden; isolation: isolate; }
+.vault-file-tile.failed > .vault-file-name { display: block; white-space: nowrap; text-overflow: ellipsis; }
 .vault-file-tile.failed > .vault-file-icon, .vault-file-tile.failed > .vault-file-name, .vault-file-tile.failed > small, .vault-file-tile.failed > .vault-file-check { opacity: .14; filter: blur(1px); pointer-events: none; }
-.vault-failure-overlay { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; padding: .625rem; background: color-mix(in srgb, var(--color-red) 28%, transparent); backdrop-filter: blur(3px); border: 1px solid color-mix(in srgb, var(--color-red) 55%, transparent); border-radius: inherit; }
-.vault-failure-content { display: flex; flex-direction: column; gap: .5rem; width: 100%; min-width: 0; text-align: center; color: var(--color-contrast); }
+.vault-failure-overlay { position: absolute; inset: 0; z-index: 1; display: flex; align-items: flex-start; padding: .5rem; background: color-mix(in srgb, var(--color-red) 28%, transparent); backdrop-filter: blur(3px); border: 1px solid color-mix(in srgb, var(--color-red) 55%, transparent); border-radius: inherit; }
+.vault-failure-content { display: flex; flex-direction: column; gap: .25rem; width: 100%; min-width: 0; text-align: center; color: var(--color-contrast); }
 .vault-failure-content > strong { font-size: .875rem; }
-.vault-failure-name { font-size: .75rem; font-weight: 600; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.vault-failure-reason { margin: 0; font-size: .75rem; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.vault-failure-name { display: block; font-size: .75rem; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.vault-failure-details { align-self: center; width: fit-content; padding: .125rem 0; border: 0; background: transparent; color: inherit; font: inherit; font-size: .75rem; line-height: 1.25; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.vault-error-detail-name { margin: 0 0 .75rem; font-weight: 600; overflow-wrap: anywhere; }
+.vault-error-detail-message { margin: 0; max-height: 55vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: .875rem; user-select: text; }
 .vault-failure-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .375rem; }
-.vault-file-tile.failed.compact { min-height: 8rem; }
 .compact .vault-failure-content { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; text-align: left; gap: .25rem .75rem; }
-.compact .vault-failure-content > strong, .compact .vault-failure-name, .compact .vault-failure-reason { grid-column: 1; }
-.compact .vault-failure-actions { grid-column: 2; grid-row: 1 / span 3; flex-direction: column; }
+.compact .vault-failure-details { grid-column: 1; align-self: start; }
+.compact .vault-failure-content > strong { display: none; }
+.compact .vault-failure-name { grid-column: 1; grid-row: 1; }
+.compact .vault-failure-details { grid-row: 2; }
+.compact .vault-failure-actions { grid-column: 2; grid-row: 1 / span 2; flex-wrap: nowrap; }
 .vault-file-tile:hover { background: var(--color-button-bg-hover); }
 .vault-file-tile.selected { box-shadow: inset 0 0 0 2px var(--color-brand); background: var(--color-brand-highlight); }
 .vault-file-check { align-self: flex-end; }
