@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { Card, Checkbox, IconButton, Button, ContextMenu, type ButtonMenuOption } from '@modrinth/ui'
 import { PlusIcon } from '@modrinth/assets'
 import ArchiveTile from '@/components/ArchiveTile.vue'
@@ -24,16 +24,13 @@ const siblings=computed(()=>vault.courses.filter(course=>course.subjectId&&cours
 const before=computed(()=>siblings.value.filter(course=>course.startUnixMs<props.course.startUnixMs).at(-1))
 const after=computed(()=>siblings.value.find(course=>course.startUnixMs>props.course.startUnixMs))
 const short=(ms:number)=>new Date(ms).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})
-let press:ReturnType<typeof setTimeout>|undefined
 async function change(subjectId:string){try{await platform.vault.changeCourse(props.course.id,subjectId);await vault.refresh(platform)}catch(error){vault.error=String(error)}}
 function context(event:MouseEvent){const options:ButtonMenuOption[]=[{type:'heading',label:'只调整当天此课次'},...vault.config.timetable.subjects.map(subject=>({id:subject.id,label:subject.name,action:()=>{void change(subject.id)}})),{type:'divider'},{id:'cancel',label:'取消当天这节课',action:()=>{void change('')}}];menu.value?.open(event,options)}
-function longPress(event:PointerEvent){if(event.pointerType==='mouse'||(event.target as HTMLElement).closest('button'))return;const synthetic=new MouseEvent('contextmenu',{clientX:event.clientX,clientY:event.clientY});press=setTimeout(()=>context(synthetic),600)}
-function cancelPress(){if(press)clearTimeout(press)}
-onUnmounted(cancelPress)
+function hold(event:Event){const point=(event as CustomEvent<{x:number;y:number}>).detail;context(new MouseEvent('contextmenu',{clientX:point.x,clientY:point.y}))}
 </script>
 <template>
 	<Card :id="`course-${course.id}`" class="vault-course-card" :class="{future,current,empty:!course.items.length}" :style="cardStyle" :data-course-id="course.id" :data-file-count="course.items.length" :aria-label="`${course.subjectName} · ${course.label}`">
-		<header class="vault-course-heading" @contextmenu.prevent="context" @pointerdown="longPress" @pointerup="cancelPress" @pointercancel="cancelPress" @pointermove="cancelPress"><div class="min-w-0 grow"><h2 class="truncate">{{course.subjectName}}</h2><small v-if="course.slotId">{{course.label}} · {{short(course.startUnixMs)}}–{{short(course.endUnixMs)}}</small></div><Checkbox :label="`全选${course.subjectName}`" label-class="sr-only" :model-value="selected" :disabled="!selectable.length" @update:model-value="value=>vault.selectMany(selectable,value)"/><IconButton :label="`复制${course.subjectName}全部资料`" type="quiet" :disabled="!selectable.length||!vault.target?.writable||platform.mode!=='native'" @click="vault.requestExport(platform,selectable.map(item=>item.id))"><PlusIcon/></IconButton></header>
+		<header class="vault-course-heading" data-course-heading @contextmenu.prevent="context" @vault-hold="hold"><div class="min-w-0 grow"><h2 class="truncate">{{course.subjectName}}</h2><small v-if="course.slotId">{{course.label}} · {{short(course.startUnixMs)}}–{{short(course.endUnixMs)}}</small></div><Checkbox :label="`全选${course.subjectName}`" label-class="sr-only" :model-value="selected" :disabled="!selectable.length" @update:model-value="value=>vault.selectMany(selectable,value)"/><IconButton :label="`复制${course.subjectName}全部资料`" type="quiet" :disabled="!selectable.length||!vault.target?.writable||platform.mode!=='native'" @click="vault.requestExport(platform,selectable.map(item=>item.id))"><PlusIcon/></IconButton></header>
 		<p v-if="future" class="vault-muted text-sm">这节课还没有上哦</p>
 		<div v-if="course.items.length" class="vault-file-grid vault-course-files"><ArchiveTile v-for="item in course.items" :key="item.id" :item="item"/></div>
 		<div v-else class="vault-course-empty">{{current?'上课中，等待收纳资料':'暂时没有文件'}}</div>

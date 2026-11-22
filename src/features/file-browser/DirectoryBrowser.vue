@@ -5,6 +5,8 @@ import { FolderIcon, FileIcon, PinIcon, ChevronLeftIcon, ChevronRightIcon, Refre
 import { useVaultStore } from '@/stores/vault'
 import { usePlatform } from '@/platform'
 import type { DirectoryEntry, FileRecovery } from '@/platform/vault-types'
+import { useSurfaceGesture } from '@/composables/surface-gesture'
+const directorySurface=ref<HTMLElement|null>(null)
 const props = withDefaults(defineProps<{ context?: 'home' | 'library' }>(), { context: 'home' })
 const vault = useVaultStore(); const platform = usePlatform()
 const target = computed(() => props.context === 'home' ? vault.homeTarget : vault.libraryBrowsing ? vault.libraryTarget : null)
@@ -83,40 +85,48 @@ function context(event: MouseEvent, entry: DirectoryEntry) {
 		:{id:'pin',label:'固定文件夹',action:()=>{void pinEntry(entry,volumeId)}})
 	menu.value?.open(event, options)
 }
-let folderPointer: { id:number; entry:DirectoryEntry; volumeId:string; x:number; y:number; previousY:number; dragging:boolean; scrolling:boolean; node:HTMLElement } | null=null
+let folderPointer: { id:number; entry:DirectoryEntry; volumeId:string; x:number; y:number; dragging:boolean; node:HTMLElement } | null=null
 let folderPress:ReturnType<typeof setTimeout>|undefined
 let suppressedUntil=0
 const folderGhost=ref<{x:number;y:number;name:string}|null>(null)
+function heldEntry(node:HTMLElement){const path=node.closest<HTMLElement>('[data-entry-path]')?.dataset.entryPath;return target.value?.entries.find(entry=>entry.path===path&&entry.isDir)}
+const touchGesture=useSurfaceGesture(directorySurface,{
+	holdFromControl:true,
+	canHold:node=>platform.mode==='native'&&!!heldEntry(node),
+	hold:(node,point)=>{const entry=heldEntry(node);const directory=target.value;if(!entry||!directory)return;vault.folderDrag={path:entry.path,identity:entry.identity,volumeId:directory.volumeId};folderGhost.value={...point,name:entry.name}},
+	drag:point=>{if(folderGhost.value)folderGhost.value={...point,name:folderGhost.value.name}},
+	drop:point=>{const source=vault.folderDrag;vault.folderDrag=null;folderGhost.value=null;if(source&&document.elementFromPoint(point.x,point.y)?.closest('[data-pin-folder-target]'))void vault.pinFolder(platform,source).catch(error=>{localError.value=String(error)})},
+	cancel:()=>{folderGhost.value=null;vault.folderDrag=null},
+})
 function clearFolderGesture(){
+	touchGesture.cancel()
 	if(folderPress)clearTimeout(folderPress);folderPress=undefined
 	const gesture=folderPointer;folderPointer=null;folderGhost.value=null;vault.folderDrag=null
 	if(gesture?.node.hasPointerCapture(gesture.id))gesture.node.releasePointerCapture(gesture.id)
 }
 function folderDown(event:PointerEvent,entry:DirectoryEntry){
+	if(event.pointerType!=='mouse')return
 	if(!event.isPrimary){clearFolderGesture();return}
 	if(!entry.isDir||event.button!==0||platform.mode!=='native'||!target.value)return
 	clearFolderGesture()
 	const node=event.currentTarget as HTMLElement
-	folderPointer={id:event.pointerId,entry:{...entry},volumeId:target.value.volumeId,x:event.clientX,y:event.clientY,previousY:event.clientY,dragging:false,scrolling:false,node}
+	folderPointer={id:event.pointerId,entry:{...entry},volumeId:target.value.volumeId,x:event.clientX,y:event.clientY,dragging:false,node}
 	node.setPointerCapture(event.pointerId)
-	folderPress=setTimeout(()=>{const gesture=folderPointer;if(!gesture||gesture.scrolling)return;gesture.dragging=true;vault.folderDrag={path:gesture.entry.path,identity:gesture.entry.identity,volumeId:gesture.volumeId};folderGhost.value={x:gesture.x,y:gesture.y,name:gesture.entry.name};suppressedUntil=Date.now()+800},450)
+	folderPress=setTimeout(()=>{const gesture=folderPointer;if(!gesture)return;gesture.dragging=true;vault.folderDrag={path:gesture.entry.path,identity:gesture.entry.identity,volumeId:gesture.volumeId};folderGhost.value={x:gesture.x,y:gesture.y,name:gesture.entry.name};suppressedUntil=Date.now()+800},450)
 }
 function folderMove(event:PointerEvent){
 	const gesture=folderPointer;if(!gesture||event.pointerId!==gesture.id)return
 	if(!gesture.dragging&&Math.hypot(event.clientX-gesture.x,event.clientY-gesture.y)>10){
 		if(folderPress)clearTimeout(folderPress)
-		if(event.pointerType==='mouse'){gesture.dragging=true;vault.folderDrag={path:gesture.entry.path,identity:gesture.entry.identity,volumeId:gesture.volumeId}}
-		else gesture.scrolling=true
+		gesture.dragging=true;vault.folderDrag={path:gesture.entry.path,identity:gesture.entry.identity,volumeId:gesture.volumeId}
 	}
 	if(gesture.dragging){if(event.cancelable)event.preventDefault();folderGhost.value={x:event.clientX,y:event.clientY,name:gesture.entry.name};suppressedUntil=Date.now()+800}
-	else if(gesture.scrolling){const list=gesture.node.closest<HTMLElement>('.vault-directory-list');if(list)list.scrollTop+=gesture.previousY-event.clientY;suppressedUntil=Date.now()+800}
-	gesture.previousY=event.clientY
 }
 async function folderUp(event:PointerEvent){
 	const gesture=folderPointer;if(!gesture||gesture.id!==event.pointerId)return
 	const drop=gesture.dragging&&document.elementFromPoint(event.clientX,event.clientY)?.closest('[data-pin-folder-target]')
 	const source=drop?vault.folderDrag:null
-	if(gesture.dragging||gesture.scrolling)suppressedUntil=Date.now()+800
+	if(gesture.dragging)suppressedUntil=Date.now()+800
 	clearFolderGesture()
 	if(source){try{await vault.pinFolder(platform,source)}catch(error){localError.value=String(error)}}
 }
@@ -143,8 +153,8 @@ onUnmounted(() => { disposed = true; clearFolderGesture(); window.removeEventLis
 		<div v-if="target" class="vault-breadcrumbs"><Button v-for="crumb in breadcrumbs" :key="crumb.path" type="quiet" size="sm" @click="navigate(crumb.path)">{{ crumb.label }}</Button></div>
 		<div v-if="target" class="vault-browser-options"><IconButton label="新建文件夹" type="quiet" :disabled="!target.writable" @click="create"><PlusIcon /></IconButton><DropdownSelect v-model="sort" name="目录排序" aria-label="目录排序" :options="['name','type','size','time']" :display-name="value => ({name:'名称',type:'类型',size:'大小',time:'时间'}[value as string] ?? value)" /><Button type="quiet" size="sm" @click="descending = !descending">{{ descending ? '降序' : '升序' }}</Button><IconButton label="网格视图" type="quiet" @click="changeView('grid')"><GridIcon /></IconButton><IconButton label="列表视图" type="quiet" @click="changeView('list')"><ListIcon /></IconButton><Button type="quiet" size="sm" :aria-pressed="vault.config.app.showHidden" @click="hidden">隐藏项</Button></div>
 		<div v-if="!target" class="vault-empty"><FolderIcon /><strong>未选择目标目录</strong><p>点击左侧驱动器。复制不会写入另一个隐含目录。</p></div>
-		<div v-else class="vault-directory-list" :class="{grid: vault.config.app.browserView === 'grid'}">
-			<button v-for="entry in entries" :key="entry.path" class="vault-directory-entry" :class="{'vault-draggable-folder':entry.isDir}" :data-copy-target="entry.isDir ? entry.path : undefined" @pointerdown="folderDown($event,entry)" @pointermove="folderMove" @pointerup="folderUp" @pointercancel="clearFolderGesture" @lostpointercapture="clearFolderGesture" @dragstart.prevent @click.capture="folderClick" @dblclick="Date.now()>=suppressedUntil&&open(entry)" @keydown.enter="open(entry)" @contextmenu.prevent="context($event,entry)" @dragover="entry.isDir && $event.preventDefault()" @drop.stop.prevent="entry.isDir && vault.dropAt(platform,entry.path)"><component :is="entry.isDir ? FolderIcon : FileIcon" /><span :title="entry.name">{{entry.name}}</span><small>{{entry.isDir ? '文件夹' : size(entry.size)}}</small></button>
+		<div v-else ref="directorySurface" class="vault-directory-list" :class="{grid: vault.config.app.browserView === 'grid'}">
+			<button v-for="entry in entries" :key="entry.path" class="vault-directory-entry" :data-entry-path="entry.path" :class="{'vault-draggable-folder':entry.isDir}" :data-copy-target="entry.isDir ? entry.path : undefined" @pointerdown="folderDown($event,entry)" @pointermove="folderMove" @pointerup="folderUp" @pointercancel="event=>{if(event.pointerType==='mouse')clearFolderGesture()}" @lostpointercapture="event=>{if(event.pointerType==='mouse')clearFolderGesture()}" @dragstart.prevent @click.capture="folderClick" @dblclick="Date.now()>=suppressedUntil&&open(entry)" @keydown.enter="open(entry)" @contextmenu.prevent="context($event,entry)" @dragover="entry.isDir && $event.preventDefault()" @drop.stop.prevent="entry.isDir && vault.dropAt(platform,entry.path)"><component :is="entry.isDir ? FolderIcon : FileIcon" /><span :title="entry.name">{{entry.name}}</span><small>{{entry.isDir ? '文件夹' : size(entry.size)}}</small></button>
 			<p v-if="!target.entries.length" class="vault-muted p-4">此文件夹为空</p>
 		</div>
 		<p v-if="localError || vault.error" class="vault-file-error text-xs p-2" role="status">{{localError || vault.error}}</p>

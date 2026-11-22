@@ -8,6 +8,7 @@ import ResizableSplit from '@/components/ResizableSplit.vue'
 import CourseCard from './CourseCard.vue'
 import FixedFolders from './FixedFolders.vue'
 import DirectoryBrowser from '@/features/file-browser/DirectoryBrowser.vue'
+import { useArchiveSurfaceGesture } from '@/composables/archive-surface-gesture'
 const vault=useVaultStore();const platform=usePlatform();const shell=useShellStore();const now=ref(Date.now());let tick:ReturnType<typeof setInterval>|undefined
 const vertical=computed(()=>vault.config.app.homeDirection==='vertical')
 const ratio=computed({get:()=>vertical.value?vault.config.app.verticalRatio:vault.config.app.horizontalRatio,set:value=>{if(vertical.value)vault.config.app.verticalRatio=value;else vault.config.app.horizontalRatio=value}})
@@ -15,6 +16,7 @@ const targetRatio=computed({get:()=>vertical.value?vault.config.app.verticalTarg
 function saveRatio(){vault.persistApp(platform,vertical.value?{verticalRatio:ratio.value}:{horizontalRatio:ratio.value})}
 function saveTargetRatio(){vault.persistApp(platform,vertical.value?{verticalTargetRatio:targetRatio.value}:{horizontalTargetRatio:targetRatio.value})}
 const scroller=ref<HTMLElement|null>(null)
+const touchGesture=useArchiveSurfaceGesture(scroller)
 let resize:ResizeObserver|undefined
 let active=false
 let centeredId=''
@@ -67,7 +69,7 @@ function rememberCenter(){
 }
 // Polling and clock changes never reposition a view the user is browsing.
 watch(()=>orderedCourses.value.map(course=>course.id).join('|'),async(value,previous)=>{await nextTick();if(active){measure();if(!previous&&value)jump(currentId.value,false)}})
-watch(vertical,async()=>{await nextTick();if(active){measure();jump(centeredId||currentId.value,false)}})
+watch(vertical,async()=>{touchGesture.cancel();await nextTick();if(active){measure();jump(centeredId||currentId.value,false)}})
 watch(()=>`${vault.config.app.scalePercent}|${orderedCourses.value.map(course=>`${course.id}:${course.items.length}`).join('|')}`,async()=>{await nextTick();if(active){measure();requestAnimationFrame(()=>{if(active)measure()})}})
 async function activate(){active=true;vault.targetContext='home';now.value=Date.now();if(tick)clearInterval(tick);tick=setInterval(()=>now.value=Date.now(),10000);await nextTick();if(!active)return;resize?.disconnect();resize=new ResizeObserver(measure);if(scroller.value)resize.observe(scroller.value);measure();jump(currentId.value,false)}
 function deactivate(){active=false;if(tick)clearInterval(tick);tick=undefined;resize?.disconnect()}
