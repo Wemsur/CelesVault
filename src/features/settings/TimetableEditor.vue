@@ -4,14 +4,17 @@ import { Button, Input, Checkbox, DropdownSelect, IconButton } from '@modrinth/u
 import { PlusIcon, XIcon } from '@modrinth/assets'
 import type { Timetable, WeekLesson } from '@/platform/vault-types'
 import { subjectColor, nextSubjectColor } from '@/platform/subject-colors'
+import { usePlatform } from '@/platform'
+import { interactionId } from '@/platform/demo-interactions'
+const platform = usePlatform()
 const timetable = defineModel<Timetable>({ required: true })
 const weekday = ref(1)
 const days: Record<number,string> = {1:'星期一',2:'星期二',3:'星期三',4:'星期四',5:'星期五',6:'星期六',7:'星期日'}
 const classSlots = computed(() => timetable.value.slots.filter(slot => slot.isClass))
-function addSubject() { timetable.value.subjects.push({ id: crypto.randomUUID(), name: '', color: nextSubjectColor(timetable.value.subjects) }) }
+function addSubject() { timetable.value.subjects.push({ id: interactionId(platform), name: '', color: nextSubjectColor(timetable.value.subjects) }) }
 function removeSubject(id:string) { if(timetable.value.lessons.some(lesson=>lesson.subjectId===id)){alertText.value='请先修改引用该科目的星期课程，再移除科目';return} timetable.value.subjects=timetable.value.subjects.filter(subject=>subject.id!==id) }
 function setClass(slotId:string, value:boolean) { const slot=timetable.value.slots.find(slot=>slot.id===slotId);if(!slot)return;slot.isClass=value;if(!value)timetable.value.lessons=timetable.value.lessons.filter(lesson=>lesson.slotId!==slotId) }
-function addSlot() { timetable.value.slots.push({ id:crypto.randomUUID(),label:`第${classSlots.value.length+1}节`,start:'08:00',end:'08:40',isClass:true }) }
+function addSlot() { timetable.value.slots.push({ id:interactionId(platform),label:`第${classSlots.value.length+1}节`,start:'08:00',end:'08:40',isClass:true }) }
 function removeSlot(id:string) { timetable.value.slots=timetable.value.slots.filter(slot=>slot.id!==id);timetable.value.lessons=timetable.value.lessons.filter(lesson=>lesson.slotId!==id) }
 function lesson(slotId:string):WeekLesson|undefined { return timetable.value.lessons.find(lesson=>lesson.weekday===weekday.value&&lesson.slotId===slotId) }
 function setLesson(slotId:string,patch:Partial<WeekLesson>) { const current=lesson(slotId);if(current)Object.assign(current,patch);else timetable.value.lessons.push({weekday:weekday.value,slotId,subjectId:timetable.value.subjects[0]?.id??'',enabled:false,...patch}) }

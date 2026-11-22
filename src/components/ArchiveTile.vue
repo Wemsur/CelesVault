@@ -5,6 +5,7 @@ import { FileTextIcon, FileImageIcon, InfoIcon, RefreshCwIcon, XIcon } from '@mo
 import type { ArchiveItem } from '@/platform/vault-types'
 import { useVaultStore } from '@/stores/vault'
 import { usePlatform } from '@/platform'
+import { allowsDemoInteractions } from '@/platform/demo-interactions'
 import { archiveThumbnail } from '@/platform/thumbnail-cache'
 const props = defineProps<{ item: ArchiveItem; compact?: boolean }>()
 const vault = useVaultStore()
@@ -27,7 +28,7 @@ function confirmRemove() {
 }
 async function removeFailed() {
 	const taskId = removalTask.value
-	if (!taskId || actionBusy.value || platform.mode !== 'native') return
+	if (!taskId || actionBusy.value || !allowsDemoInteractions(platform)) return
 	actionBusy.value = true
 	try { await platform.vault.dismissFailed(taskId); vault.archivesChanged(); await vault.refresh(platform) }
 	catch (error) { vault.error = String(error) }
@@ -48,7 +49,7 @@ function nativeDrag(event: DragEvent) {
 	if (event.dataTransfer) { event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData('application/x-celesvault-archive', props.item.id) }
 }
 async function retry() {
-	if (!props.item.taskId || actionBusy.value || platform.mode !== 'native') return
+	if (!props.item.taskId || actionBusy.value || !allowsDemoInteractions(platform)) return
 	actionBusy.value = true
 	try { await platform.vault.retry(props.item.taskId); vault.archivesChanged(); await vault.refresh(platform) }
 	catch (error) { vault.error = String(error) }
@@ -71,8 +72,8 @@ onUnmounted(() => { disposed = true })
 				<span class="vault-failure-name" :title="item.displayName">{{ item.displayName }}</span>
 				<button type="button" class="vault-failure-details" @pointerdown.stop @touchstart.stop @touchmove.stop @touchend.stop @click.stop="showErrorDetails" @dblclick.stop @keydown.stop>错误详情</button>
 				<div class="vault-failure-actions" @pointerdown.stop @touchstart.stop @touchmove.stop @touchend.stop @click.stop @dblclick.stop @keydown.stop>
-					<Button size="sm" type="outlined" :loading="actionBusy" :disabled="!item.taskId || platform.mode !== 'native'" @click="confirmRemove"><XIcon />移除</Button>
-					<Button size="sm" type="colored" color="red" :loading="actionBusy" :disabled="!item.taskId || platform.mode !== 'native'" @click="retry"><RefreshCwIcon />重试</Button>
+					<Button size="sm" type="outlined" :loading="actionBusy" :disabled="!item.taskId || !allowsDemoInteractions(platform)" @click="confirmRemove"><XIcon />移除</Button>
+					<Button size="sm" type="colored" color="red" :loading="actionBusy" :disabled="!item.taskId || !allowsDemoInteractions(platform)" @click="retry"><RefreshCwIcon />重试</Button>
 				</div>
 			</div>
 		</div>

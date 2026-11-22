@@ -10,7 +10,7 @@ Vue 3 + TypeScript + Vite 7 + Tailwind 3.4；Vue Router 使用 hash 路由，Pin
 
 - `src/platform/types.ts`：当前窗口/运行状态能力契约。
 - `native.ts`：调用真实 Tauri 窗口命令与事件，不导入 PreviewAdapter。
-- `preview.ts`：只在开发浏览器中使用，窗口动作明确显示模拟结果；不读取驱动器、教学资料或正式 data。
+- `preview.ts`：只在开发浏览器中使用；用户2026-11-22授权加入`preview-fixtures.ts`内存演示，课程/目录/固定/复制等结果均明确标注虚构，刷新重置、不读写驱动器、教学资料或正式data。真实系统能力仍为false；演示权限由DEV+preview+demo共同限定。
 - `index.ts`：显式检测 Tauri。正式静态页面无 Tauri 时拒绝启动，而不是静默演示成功。
 - 页面从 `usePlatform()` 获取能力，不直接调用 Tauri；原窗口控件通过平台接口适配。
 

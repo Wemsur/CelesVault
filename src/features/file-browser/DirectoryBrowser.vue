@@ -4,6 +4,7 @@ import { Input, IconButton, Button, DropdownSelect, ContextMenu, NewModal, Confi
 import { FolderIcon, FileIcon, PinIcon, ChevronLeftIcon, ChevronRightIcon, RefreshCwIcon, PlusIcon, ListIcon, GridIcon } from '@modrinth/assets'
 import { useVaultStore } from '@/stores/vault'
 import { usePlatform } from '@/platform'
+import { allowsDemoInteractions } from '@/platform/demo-interactions'
 import type { DirectoryEntry, FileRecovery } from '@/platform/vault-types'
 import { useSurfaceGesture } from '@/composables/surface-gesture'
 const directorySurface=ref<HTMLElement|null>(null)
@@ -92,7 +93,7 @@ const folderGhost=ref<{x:number;y:number;name:string}|null>(null)
 function heldEntry(node:HTMLElement){const path=node.closest<HTMLElement>('[data-entry-path]')?.dataset.entryPath;return target.value?.entries.find(entry=>entry.path===path&&entry.isDir)}
 const touchGesture=useSurfaceGesture(directorySurface,{
 	holdFromControl:true,
-	canHold:node=>platform.mode==='native'&&!!heldEntry(node),
+	canHold:node=>allowsDemoInteractions(platform)&&!!heldEntry(node),
 	hold:(node,point)=>{const entry=heldEntry(node);const directory=target.value;if(!entry||!directory)return;vault.folderDrag={path:entry.path,identity:entry.identity,volumeId:directory.volumeId};folderGhost.value={...point,name:entry.name}},
 	drag:point=>{if(folderGhost.value)folderGhost.value={...point,name:folderGhost.value.name}},
 	drop:point=>{const source=vault.folderDrag;vault.folderDrag=null;folderGhost.value=null;if(source&&document.elementFromPoint(point.x,point.y)?.closest('[data-pin-folder-target]'))void vault.pinFolder(platform,source).catch(error=>{localError.value=String(error)})},
@@ -107,7 +108,7 @@ function clearFolderGesture(){
 function folderDown(event:PointerEvent,entry:DirectoryEntry){
 	if(event.pointerType!=='mouse')return
 	if(!event.isPrimary){clearFolderGesture();return}
-	if(!entry.isDir||event.button!==0||platform.mode!=='native'||!target.value)return
+	if(!entry.isDir||event.button!==0||!allowsDemoInteractions(platform)||!target.value)return
 	clearFolderGesture()
 	const node=event.currentTarget as HTMLElement
 	folderPointer={id:event.pointerId,entry:{...entry},volumeId:target.value.volumeId,x:event.clientX,y:event.clientY,dragging:false,node}

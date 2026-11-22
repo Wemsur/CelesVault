@@ -9,6 +9,8 @@ export interface RuntimeInfo {
 }
 export interface PlatformClient {
 	readonly mode: 'native' | 'preview'
+	/** Only the DEV browser adapter provides in-memory interaction fixtures. */
+	readonly demo?: boolean
 	window: { setScale(percent: number): Promise<void>; getState(): Promise<WindowState>; minimize(): Promise<void>; toggleMaximize(): Promise<void>; hide(): Promise<void>; onStateChanged(listener: (state: WindowState) => void): Promise<Unlisten> }
 	app: { getRuntimeInfo(): Promise<RuntimeInfo> }
 	vault: {

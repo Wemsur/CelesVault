@@ -13,6 +13,7 @@ async function mount() {
 	teleports.id = 'teleports'
 	document.body.append(teleports)
 	const platform = await createPlatform()
+	document.documentElement.classList.toggle('vault-demo-mode', platform.demo === true)
 	const app = createApp(App)
 	app.use(createPinia()).use(router).use(FloatingVue)
 	app.provide(platformKey, platform)

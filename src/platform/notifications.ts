@@ -5,7 +5,11 @@ import { ref } from 'vue'
 export class AppNotificationManager extends AbstractWebNotificationManager {
 	private readonly state = ref<WebNotification[]>([])
 	private readonly location = ref<NotificationPanelLocation>('right')
-	constructor(private readonly seconds: () => number) { super() }
+	constructor(private readonly seconds: () => number, createId: () => string = () => crypto.randomUUID()) {
+		super()
+		const add = this.addNotification
+		this.addNotification = notification => add({ ...notification, id: notification.id ?? createId() })
+	}
 	getNotificationLocation() { return this.location.value }
 	setNotificationLocation(location: NotificationPanelLocation) { this.location.value = location }
 	getNotifications() { return this.state.value }

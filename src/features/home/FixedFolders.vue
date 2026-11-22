@@ -4,6 +4,7 @@ import { IconButton, Button, ContextMenu, NewModal, Input, type ButtonMenuOption
 import { PinIcon, PlusIcon, FolderIcon } from '@modrinth/assets'
 import { useVaultStore } from '@/stores/vault'
 import { usePlatform } from '@/platform'
+import { allowsDemoInteractions } from '@/platform/demo-interactions'
 import type { FixedFolder } from '@/platform/vault-types'
 import { favoriteDeviceKey } from '@/platform/fixed-folders'
 import { useSurfaceGesture } from '@/composables/surface-gesture'
@@ -27,7 +28,7 @@ async function relocate(folder:FixedFolder){const target=vault.target;const driv
 function menu(event:MouseEvent,folder:FixedFolder){const options:ButtonMenuOption[]=[{id:'alias',label:'修改别名',action:()=>{editing.value=folder;alias.value=folder.alias;aliasModal.value?.show()}},{id:'up',label:'上移',action:()=>{void order(folder,-1)}},{id:'down',label:'下移',action:()=>{void order(folder,1)}},{id:'relocate',label:'重新定位到当前目录',action:()=>{void relocate(folder)}},{type:'divider'},{id:'remove',label:'取消固定',action:()=>{void remove(folder)}}];context.value?.open(event,options)}
 </script>
 <template>
-	<section ref="scrollSurface" class="vault-fixed-folders" :class="{'folder-drag-active':!!vault.folderDrag}" data-pin-folder-target @dragover="over" @drop="drop"><header class="vault-panel-title"><PinIcon/><h2>固定文件夹</h2><IconButton class="ml-auto" label="固定当前文件夹" type="quiet" :disabled="!selectedDrive||!deviceKey(selectedDrive)||platform.mode!=='native'" @click="pin"><PlusIcon/></IconButton></header>
+	<section ref="scrollSurface" class="vault-fixed-folders" :class="{'folder-drag-active':!!vault.folderDrag}" data-pin-folder-target @dragover="over" @drop="drop"><header class="vault-panel-title"><PinIcon/><h2>固定文件夹</h2><IconButton class="ml-auto" label="固定当前文件夹" type="quiet" :disabled="!selectedDrive||!deviceKey(selectedDrive)||!allowsDemoInteractions(platform)" @click="pin"><PlusIcon/></IconButton></header>
 		<p v-if="vault.folderDrag" class="vault-pin-drop-hint">松开以固定此文件夹</p><p v-else-if="!folders.length" class="vault-muted text-sm p-4">选择驱动器后，可固定常用目录；也可长按浏览区文件夹拖入这里。</p><p v-if="selectedDrive?.isUsb&&!selectedDrive.identityReliable" class="vault-file-error text-xs">设备身份不可靠，不能自动套用收藏。</p>
 		<div class="vault-fixed-grid"><Button v-for="folder in folders" :key="folder.id" type="outlined" :aria-disabled="!path(folder)" :class="{'vault-fixed-offline':!path(folder)}" :data-copy-target="path(folder)??undefined" :title="`${folder.volumeId} · ${folder.relativePath||'根目录'}`" @click="path(folder)&&vault.browse(platform,path(folder)!)" @contextmenu.prevent="menu($event,folder)" @dragover.prevent @drop.prevent="vault.folderDrag?drop($event):path(folder)&&vault.dropAt(platform,path(folder)!)"><FolderIcon/><span class="truncate">{{folder.alias}}</span></Button></div>
 		<ContextMenu ref="context" label="固定文件夹菜单"/><NewModal ref="aliasModal" header="固定文件夹别名" width="24rem"><Input v-model="alias" aria-label="固定夹别名"/><template #actions><Button type="outlined" @click="aliasModal?.hide()">取消</Button><Button type="colored" color="brand" @click="save">保存</Button></template></NewModal>

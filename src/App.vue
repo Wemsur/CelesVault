@@ -11,6 +11,7 @@ import ArchiveDetailModal from '@/components/ArchiveDetailModal.vue'
 import SafeEject from '@/components/SafeEject.vue'
 import BackgroundLayer from '@/features/appearance/BackgroundLayer.vue'
 import { initializeAppearance } from '@/platform/appearance'
+import { interactionId } from '@/platform/demo-interactions'
 import { applyInterfaceScale, previewScale } from '@/platform/ui-scale'
 import { usePlatform, type Unlisten } from '@/platform'
 import { useShellStore } from '@/stores/shell'
@@ -22,7 +23,7 @@ const platform = usePlatform()
 const stopAppearance = initializeAppearance()
 const closeNotice = ref<InstanceType<typeof NewModal> | null>(null)
 provideModalBehavior({ noblur: ref(false) })
-const notifications = new AppNotificationManager(() => vault.config.app.notificationSeconds)
+const notifications = new AppNotificationManager(() => vault.config.app.notificationSeconds, () => interactionId(platform))
 provideNotificationManager(notifications)
 let refreshTimer: ReturnType<typeof setInterval> | undefined
 let unlistenConfig: Unlisten | undefined
@@ -49,6 +50,7 @@ onMounted(async () => {
 	window.addEventListener('vault:preview-window-action', previewMessage)
 	try { shell.runtime = await platform.app.getRuntimeInfo() } catch (failure) { reportError(failure) }
 	await vault.refresh(platform)
+	if (platform.demo && !disposed && vault.drives[0]) await vault.browse(platform, vault.drives[0].root, 'home')
 	if (disposed) return
 	try { unlistenConfig = await platform.vault.onConfigChanged(() => { void vault.loadConfig(platform).catch(reportError) }); if (disposed) unlistenConfig() } catch (failure) { reportError(failure) }
 	if (!disposed) refreshTimer = setInterval(() => { void vault.refresh(platform) }, 2000)

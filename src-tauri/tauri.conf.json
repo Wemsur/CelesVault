@@ -5,7 +5,7 @@
 	"identifier": "top.wemsur.celesvault",
 	"mainBinaryName": "CelesVault",
 	"build": {
-		"beforeDevCommand": "pnpm run web:dev",
+		"beforeDevCommand": "pnpm run web:dev:local",
 		"beforeBuildCommand": "pnpm run web:build",
 		"devUrl": "http://localhost:8006",
 		"frontendDist": "../web-dist"

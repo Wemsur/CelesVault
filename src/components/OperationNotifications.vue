@@ -17,7 +17,7 @@ function jobNotice(job: CopyJob) {
 	const title = running ? '正在复制资料' : job.state === 'failed' ? '复制失败' : job.state === 'cancelled' ? '复制已取消' : job.skipped > 0 ? '复制完成，部分已跳过' : '复制完成'
 	const text = `已处理 ${job.processed}/${job.total}，已复制 ${job.copied}，跳过 ${job.skipped}${job.error ? `\n${job.error}` : ''}`
 	props.manager.updateJob({
-		id: `copy-${job.id}`, title, text, type, dismissible: !running, copyable: !running,
+		id: `copy-${job.id}`, title: platform.demo ? `演示：${title}（未写磁盘）` : title, text, type, dismissible: !running, copyable: !running,
 		buttons: running ? [{ label: '取消复制', action: async () => {
 			try { await platform.files.cancel(job.id) }
 			catch (error) { vault.error = String(error) }

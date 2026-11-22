@@ -34,6 +34,18 @@ button, a, input { -webkit-tap-highlight-color: transparent; }
 .vault-navigation-divider { width: 2rem; border: 0; border-top: 1px solid var(--color-divider); margin: .5rem 0; }
 .vault-nav-bottom { margin-top: auto; }
 .vault-content { grid-area: content; background: var(--color-bg); border-top-left-radius: var(--radius-xl); min-width: 0; min-height: 0; overflow: hidden; position: relative; }
+.vault-route-content { height: 100%; min-height: 0; min-width: 0; }
+.vault-demo-shell .vault-content { display: flex; flex-direction: column; }
+.vault-demo-shell .vault-route-content { flex: 1; height: auto; overflow: hidden; }
+.vault-demo-banner { flex: 0 0 auto; padding: .375rem .75rem; color: var(--color-orange); background: var(--surface-3); border-bottom: 1px solid var(--color-divider); font-size: .75rem; text-align: center; }
+.vault-demo-setting { color: var(--color-orange); font-size: .875rem; }
+@media (max-width: 700px) {
+	.vault-demo-shell { --top-bar-height: 5.75rem; --left-bar-width: 3.5rem; }
+	.vault-demo-shell .vault-topbar { align-items: flex-start; padding-top: .5rem; }
+	.vault-demo-shell .vault-brand { font-size: 1rem; padding-top: .25rem; }
+	.vault-demo-shell .vault-search { top: 2.875rem; width: calc(100% - 1.5rem); }
+	.vault-demo-shell .vault-direction { margin-left: auto; }
+}
 [data-tauri-drag-region-exclude] { -webkit-app-region: no-drag; }
 .vault-search svg { width: 1.25rem; height: 1.25rem; }
 .vault-page { padding: 1.5rem; height: 100%; display: flex; flex-direction: column; gap: 1rem; overflow: auto; }

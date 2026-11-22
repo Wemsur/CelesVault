@@ -2,6 +2,7 @@ import { acceptHMRUpdate, defineStore, getActivePinia } from 'pinia'
 import { computed, ref } from 'vue'
 import { favoriteLocation, matchingFavorite, type FolderPinSource } from '@/platform/fixed-folders'
 import type { PlatformClient } from '@/platform'
+import { allowsDemoInteractions, interactionId } from '@/platform/demo-interactions'
 import { emptyConfig, localDate, type AppSettings, type ArchiveDetail, type ArchiveItem, type ConfigBundle, type ConflictPolicy, type CopyJob, type CopyPlan, type CourseView, type DirectoryView, type DriveInfo, type EngineStatus, type ExportRequest } from '@/platform/vault-types'
 
 export const useVaultStore = defineStore('vault', () => {
@@ -34,7 +35,7 @@ export const useVaultStore = defineStore('vault', () => {
 		const snapshot = { ...source }
 		const dataRoot = status.value?.dataRoot
 		const operation = favoriteQueue.catch(() => {}).then(async () => {
-			if (platform.mode !== 'native') throw new Error('浏览器预览不能持久固定文件夹')
+			if (!allowsDemoInteractions(platform)) throw new Error('当前模式不能固定文件夹')
 			const directory = await platform.files.browse(snapshot.path, config.value.app.showHidden)
 			if (directory.identity !== snapshot.identity || directory.volumeId !== snapshot.volumeId) throw new Error('文件夹或设备身份已变化，请刷新后重新固定')
 			const volumes = await platform.files.drives()
@@ -43,7 +44,7 @@ export const useVaultStore = defineStore('vault', () => {
 			if (!dataRoot || status.value?.dataRoot !== dataRoot) throw new Error('持久目录已变化，请重新固定文件夹')
 			if (matchingFavorite(current.favorites, directory.path, directory.volumeId, volumes)) { config.value.favorites = current.favorites; return }
 			const position = Math.max(-1, ...current.favorites.map(folder => folder.position)) + 1
-			await platform.vault.favoriteSave({ id: crypto.randomUUID(), deviceId: location.deviceId, volumeId: location.volumeId, relativePath: location.relativePath,
+			await platform.vault.favoriteSave({ id: interactionId(platform), deviceId: location.deviceId, volumeId: location.volumeId, relativePath: location.relativePath,
 				alias: location.relativePath.split('/').at(-1) || location.drive.name, position })
 			config.value.favorites = (await platform.vault.config()).favorites
 		})
@@ -91,7 +92,7 @@ export const useVaultStore = defineStore('vault', () => {
 				if (!previous) continue
 				const set = (value: DirectoryView | null) => { if (context === 'home') homeTarget.value = value; else libraryTarget.value = value }
 				if (!volumes.some(volume => volume.volumeId === previous.volumeId)) { set(null); continue }
-				if (platform.mode === 'native') {
+				if (allowsDemoInteractions(platform)) {
 					try {
 						const updated = await platform.files.browse(previous.path, config.value.app.showHidden)
 						const current = context === 'home' ? homeTarget.value : libraryTarget.value
@@ -116,7 +117,7 @@ export const useVaultStore = defineStore('vault', () => {
 	function persistApp(platform: PlatformClient, patch: Partial<AppSettings>) {
 		config.value.app = { ...config.value.app, ...patch }
 		if (appSaveTimer) clearTimeout(appSaveTimer)
-		if (platform.mode !== 'native' || !status.value?.dataRoot) return
+		if (!allowsDemoInteractions(platform) || !status.value?.dataRoot) return
 		appSaveTimer = setTimeout(() => {
 			const desired = JSON.parse(JSON.stringify(config.value.app)) as AppSettings
 			saving = saving.then(async () => {
@@ -132,7 +133,7 @@ export const useVaultStore = defineStore('vault', () => {
 		configReady.value = true
 	}
 	async function requestExport(platform: PlatformClient, ids: string[], destination: DirectoryView | null = target.value) {
-		if (!destination || !destination.writable || !ids.length || busy.value || platform.mode !== 'native') return
+		if (!destination || !destination.writable || !ids.length || busy.value || !allowsDemoInteractions(platform)) return
 		const request: ExportRequest = { ids: [...new Set(ids)], targetPath: destination.path, targetIdentity: destination.identity, conflict: 'keepBoth' }
 		busy.value = true; error.value = ''
 		try {
@@ -161,7 +162,7 @@ export const useVaultStore = defineStore('vault', () => {
 	function endDrag() { dragIds.value = []; pointerDrag.value = null }
 	async function dropAt(platform: PlatformClient, path: string) {
 		const ids = [...dragIds.value]; endDrag()
-		if (!ids.length || platform.mode !== 'native') return
+		if (!ids.length || !allowsDemoInteractions(platform)) return
 		try { await requestExport(platform, ids, await platform.files.browse(path, config.value.app.showHidden)) } catch (failure) { error.value = String(failure) }
 	}
 	return { status, config, configReady, items, courses, drives, homeTarget, libraryTarget, libraryBrowsing, targetContext, target, jobs, selected, selectedItems, busy, error,

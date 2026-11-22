@@ -12,13 +12,15 @@ Node.js 22.12+ 或 24，pnpm 10.15。前端依赖已在当前工作目录安装�
 pnpm install --ignore-scripts
 ```
 
-只预览前端（开发浏览器模式明确标注，不访问真实文件）：
+手机/浏览器前端演示（监听局域网，明确标识内存模拟数据，不访问真实资料，刷新重置）：
 
 ```bash
 pnpm run web:dev
 ```
 
-完整 Windows/Tauri 开发入口，**由用户在主动打开的管理员终端中运行**：
+手机同Wi-Fi访问 `http://电脑局域网IPv4:8006/`，不是手机127.0.0.1；访问方式、演示操作和限制见 [手机触屏演示](docs/mobile-preview.md)。仅需本机浏览时可用 `pnpm run web:dev:local`。
+
+完整 Windows/Tauri 开发入口，**由用户在主动打开的管理员终端中运行**（内部使用仅本机监听的web:dev:local）：
 
 ```bash
 pnpm run app:dev

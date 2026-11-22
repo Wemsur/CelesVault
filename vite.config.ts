@@ -17,7 +17,9 @@ export default defineConfig({
 		],
 	},
 	server: {
+		// CLI selects LAN (web:dev) or loopback (web:dev:local / Tauri).
 		host: '127.0.0.1',
+		fs: { strict: true, allow: [path('./')], deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/data/**', '**/target/**', '**/celesvault-location.json'] },
 		port: 8006,
 		strictPort: true,
 		watch: {

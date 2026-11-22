@@ -4,6 +4,7 @@ import AppearanceSettings from './AppearanceSettings.vue'
 import { useAppearance } from '@/platform/appearance'
 import { applyInterfaceScale, previewScale } from '@/platform/ui-scale'
 import { touchDiagnostics } from '@/composables/touch-diagnostics'
+import { allowsDemoInteractions } from '@/platform/demo-interactions'
 import { TabbedModal, ConfirmModal, NewModal, Card, Button, DropdownSelect, Input, Checkbox, injectNotificationManager } from '@modrinth/ui'
 import { ArchiveIcon, SettingsIcon, LibraryIcon, HomeIcon, SearchIcon, PlusIcon, XIcon } from '@modrinth/assets'
 import { useShellStore } from '@/stores/shell'
@@ -65,7 +66,7 @@ async function exportData(kind:'config'|'csv'|'json'|'diagnostics'){
 </script>
 <template>
 	<TabbedModal ref="modal" header="设置" :tabs="tabs" :before-hide="beforeHide" :on-hide="()=>{shell.settingsOpen=false;applyPreviewScale()}" width="60rem" max-width="65rem" :floating-action-bar-shown="dirty" :disable-close="busy">
-		<template #content="{index}"><div class="vault-setting"><p v-if="busy" class="vault-muted text-sm" role="status">正在处理，请等待操作完成；此时不会提前报告保存或重启成功。</p><p v-if="error" class="vault-file-error text-sm" role="status">{{error}}</p>
+		<template #content="{index}"><div class="vault-setting"><p v-if="platform.demo" class="vault-demo-setting">内存演示：此处保存只改变当前浏览器会话，刷新全部重置，不会写入电脑资料。</p><p v-if="busy" class="vault-muted text-sm" role="status">正在处理，请等待操作完成；此时不会提前报告保存或重启成功。</p><p v-if="error" class="vault-file-error text-sm" role="status">{{error}}</p>
 			<template v-if="index===0"><h2>存储与归档</h2><Card><div class="vault-setting-label"><strong>持久目录</strong><small>{{vault.status?.dataRoot??shell.runtime?.defaultDataRoot??'程序同级 data'}}</small><small>资料、SQLite、课表、规则和收藏存放在同一持久根。请使用不受还原影响的目录。</small></div></Card><Button type="outlined" :disabled="platform.mode!=='native'||busy||dirty" @click="chooseRoot">{{vault.status?.dataRoot?'更换持久目录':'选择持久目录并启动'}}</Button><p class="vault-muted text-sm">更换目录不迁移旧资料；活动任务期间不能更换。没有源文件修改、静默覆盖或自动清档。</p><Card><strong>归档副本只读</strong><p class="vault-muted mt-2">默认打开保存副本，需要编辑时另存文件。去重依靠保存内容摘要；异常或缺失的副本不会继续导出。</p></Card></template>
 			<template v-else-if="index===1"><h2>监测</h2><Card><strong>{{vault.status?.monitorState==='running'?'正在监测':vault.status?.monitorState==='paused'?'已暂停':vault.status?.monitorState==='error'?'监测异常':'未配置'}}</strong><p class="vault-muted mt-2">{{vault.status?.monitorDetail}}</p></Card><Button type="outlined" :disabled="platform.mode!=='native'||!vault.status?.dataRoot||busy" @click="pause">{{vault.status?.monitorState==='paused'?'恢复监测':'暂停监测'}}</Button><DropdownSelect v-model="draft.capture.mode" name="监测模式" aria-label="监测模式" :options="['loose','strict']" :display-name="value=>value==='loose'?'宽松':'严格'"/><Checkbox v-model="draft.capture.includeDefaultSources" label="包含桌面、下载和D盘"/><Checkbox v-model="draft.capture.includeUsb" label="包含已挂载USB存储"/>
 				<Button type="outlined" :loading="busy" :disabled="platform.mode!=='native'||!vault.status?.dataRoot||busy||dirty" @click="restartConfirm?.show()">清理并重启监测</Button><p class="vault-muted text-sm">结束其他所有同名 CelesVault / CelesVault-Probe 进程（包含其他目录的副本），清理全部 CelesVault 监测ETW会话，再重启当前后台。当前窗口保留；其他实例的未保存操作可能丢失。请先保存或放弃设置草稿。</p>
@@ -79,7 +80,7 @@ async function exportData(kind:'config'|'csv'|'json'|'diagnostics'){
 			<template v-else><h2>CelesVault</h2><p>版本 {{shell.runtime?.version??'0.2.0'}}</p><p class="vault-muted">高中教学资料收纳与归档工具。只接WPS教学格式，不做账号、云、AI或遥测。</p><Card><strong>第三方与许可</strong><p class="vault-muted mt-2">UI来自Celestial Launcher，使用用户自己的CelesVault图标；GPL-3.0-only应用代码，Inter3.19为SIL OFL。完整对应源码及许可随发行提供。</p></Card></template>
 		</div></template>
 		<template #footer><p class="vault-muted px-4 py-3 text-xs">CelesVault {{shell.runtime?.version??'0.2.0'}}<br/>{{platform.mode==='native'?'Windows 原生宿主':'浏览器预览'}}</p></template>
-		<template #floating-action-bar><Card v-if="dirty" class="!m-0"><div class="flex items-center justify-between gap-3"><span class="text-sm vault-muted">有未保存的修改</span><div class="flex gap-2"><Button type="outlined" :disabled="busy" @click="modal?.hide()">取消</Button><Button type="colored" color="brand" :loading="busy" :disabled="platform.mode!=='native'||!vault.status?.dataRoot" @click="save">保存</Button></div></div></Card></template>
+		<template #floating-action-bar><Card v-if="dirty" class="!m-0"><div class="flex items-center justify-between gap-3"><span class="text-sm vault-muted">有未保存的修改</span><div class="flex gap-2"><Button type="outlined" :disabled="busy" @click="modal?.hide()">取消</Button><Button type="colored" color="brand" :loading="busy" :disabled="!allowsDemoInteractions(platform)||!vault.status?.dataRoot" @click="save">{{platform.demo?'应用到演示':'保存'}}</Button></div></div></Card></template>
 	</TabbedModal>
 	<ConfirmModal ref="restartConfirm" title="结束所有其他监测实例并清理ETW？" description="其他目录中的同名 CelesVault 和 CelesVault-Probe 进程也会被强制结束，未保存操作可能丢失。将停止全部 CelesVault-Capture 和 CelesVault-WPSProbe 会话，再启动当前监测；不会结束当前窗口或其他软件的跟踪。" proceed-label="结束并重启" :danger="true" @proceed="restartMonitoring"/>
 	<ConfirmModal ref="discard" title="放弃未保存的修改？" description="课表、规则或外观草稿不会写入data，主题、背景和缩放恢复已保存设置。" proceed-label="放弃修改" :danger="false" @proceed="discardDraft"/>

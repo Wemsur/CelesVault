@@ -27,18 +27,18 @@ watch(() => route.name, name => {
 }, { immediate: true })
 </script>
 <template>
-	<div class="vault-app vault-shell" :style="{ '--window-controls-width': `${windowControlsWidth}px` }">
+	<div class="vault-app vault-shell" :class="{'vault-demo-shell':platform.demo}" :style="{ '--window-controls-width': `${windowControlsWidth}px` }">
 		<header class="vault-topbar" data-tauri-drag-region>
 			<div class="vault-brand" data-tauri-drag-region><span>CelesVault</span></div>
 			<div class="vault-search" data-tauri-drag-region-exclude><GlobalSearch /></div>
-			<span v-if="platform.mode === 'preview'" class="vault-preview-label">浏览器预览</span>
+			<span v-if="platform.mode === 'preview'" class="vault-preview-label">{{platform.demo?'内存演示':'浏览器预览'}}</span>
 			<div v-if="isHome" class="vault-direction" data-tauri-drag-region-exclude><IconButton :label="directionLabel" :title="directionLabel" type="quiet" @click="toggleDirection"><SquareSplitHorizontalIcon :class="{ 'rotate-90': nextDirection === 'vertical' }" /></IconButton></div>
-			<WindowControls @width-change="windowControlsWidth = $event" @window-error="vault.error = `窗口状态读取失败：${String($event)}`" />
+			<WindowControls :show-controls="platform.mode==='native'" @width-change="windowControlsWidth = $event" @window-error="vault.error = `窗口状态读取失败：${String($event)}`" />
 		</header>
 		<nav class="vault-navigation" aria-label="主要导航"><NavButton v-tooltip.right="'主页'" to="/" :is-primary="current => current.path === '/'" aria-label="主页"><HomeIcon /></NavButton><NavButton v-tooltip.right="'库'" to="/library" :is-primary="current => current.path === '/library'" aria-label="库"><LibraryIcon /></NavButton><hr class="vault-navigation-divider" />
 			<div class="vault-drive-navigation"><NavButton v-for="drive in vault.drives" :key="drive.identity" v-tooltip.right="drive.name" :to="() => vault.browse(platform, drive.root)" :aria-label="drive.name"><component :is="drive.isUsb ? PlugIcon : ServerIcon" /></NavButton><span v-if="!vault.drives.length" v-tooltip.right="platform.mode === 'preview' ? '浏览器不读取驱动器' : '没有可浏览的驱动器'"><NavButton :to="() => {}" :disabled="true" aria-label="没有可浏览的驱动器"><ServerIcon /></NavButton></span></div>
 			<div class="vault-nav-bottom"><NavButton v-tooltip.right="'设置'" :to="() => { shell.settingsOpen = true }" aria-label="设置"><SettingsIcon /></NavButton></div>
 		</nav>
-		<main class="vault-content"><span class="sr-only" role="status">{{ shell.statusMessage || vault.error }}</span><RouterView v-slot="{ Component }"><KeepAlive><component :is="Component" /></KeepAlive></RouterView></main>
+		<main class="vault-content"><div v-if="platform.demo" class="vault-demo-banner" role="note">内存演示 · 非真实资料 · 所有操作刷新后重置</div><div class="vault-route-content"><span class="sr-only" role="status">{{ shell.statusMessage || vault.error }}</span><RouterView v-slot="{ Component }"><KeepAlive><component :is="Component" /></KeepAlive></RouterView></div></main>
 	</div>
 </template>
